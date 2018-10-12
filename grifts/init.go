@@ -1,7 +1,7 @@
 package grifts
 
 import (
-	"github.com/YaleSpinup/rds_api/actions"
+	"github.com/YaleSpinup/rds-api/actions"
 	"github.com/gobuffalo/buffalo"
 )
 

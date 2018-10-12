@@ -27,7 +27,7 @@ func App() *buffalo.App {
 			PreWares: []buffalo.PreWare{
 				cors.Default().Handler,
 			},
-			SessionName: "_rds_api_session",
+			SessionName: "_rdsapi_session",
 		})
 		// Automatically redirect to SSL
 		app.Use(forceSSL())
