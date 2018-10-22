@@ -4,9 +4,9 @@ This API provides simple restful API access to Amazon's RDS service.
 
 ## Usage
 
-This API uses the standard format for input and output of parameters as defined by the AWS SDK (for reference: https://docs.aws.amazon.com/sdk-for-go/api/service/rds/).
+This API uses the standard format for input and output of parameters as defined by the AWS SDK (for reference see https://docs.aws.amazon.com/sdk-for-go/api/service/rds/).
 
-You can define multiple _accounts_ in your config file which are mapped to endpoints by the API and allow RDS instances to be created in different AWS accounts.
+You can define multiple _accounts_ in your `config.json` file which are mapped to endpoints by the API and allow RDS instances to be created in different AWS accounts. See [example config](config/config.example.json)
 
 ### Creating a database
 

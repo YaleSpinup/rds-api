@@ -1,0 +1,17 @@
+{ 
+  "accounts": {
+    "test": {
+      "region": "us-east-1",
+      "akid": "AKID",
+      "secret": "SECRET",
+      "defaultSubnet": "default-subnets"
+    },
+    "prod": {
+      "region": "us-east-1",
+      "akid": "AKID",
+      "secret": "SECRET",
+      "defaultSubnet": "default-subnets"
+    }
+  },
+  "token": "TOKEN"
+}
