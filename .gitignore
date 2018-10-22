@@ -12,3 +12,4 @@ rds_api
 .vscode/
 .grifter/
 .env
+config.json

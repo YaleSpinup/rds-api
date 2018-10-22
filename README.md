@@ -1,21 +1,106 @@
-# Welcome to Buffalo!
+# rds-api
 
-Thank you for choosing Buffalo for your web development needs.
+This API provides simple restful API access to Amazon's RDS service.
 
-## Starting the Application
+## Usage
 
-Buffalo ships with a command that will watch your application and automatically rebuild the Go binary and any assets for you. To do that run the "buffalo dev" command:
+### Creating a database
 
-	$ buffalo dev
+You can specify both database cluster and instance information in the POST to create just an instance or a cluster and a member instance. 
 
-If you point your browser to [http://127.0.0.1:3000](http://127.0.0.1:3000) you should see a "Welcome to Buffalo!" page.
+For example, to create a single Postgres database instance:
 
-**Congratulations!** You now have your Buffalo application up and running.
+```
+POST http://127.0.0.1:3000/v1/rds/{account}
+{
+   "Instance":{
+      "AllocatedStorage":20,
+      "AutoMinorVersionUpgrade":true,
+      "BackupRetentionPeriod":0,
+      "DBInstanceClass":"db.t2.micro",
+      "DBInstanceIdentifier":"mypostgres",
+      "Engine":"postgres",
+      "MasterUserPassword":"MyPassword",
+      "MasterUsername":"MyUser",
+      "PubliclyAccessible":false,
+      "StorageEncrypted":false
+   }
+}
+```
 
-## What Next?
+To create an Aurora cluster with one database instance:
 
-We recommend you heading over to [http://gobuffalo.io](http://gobuffalo.io) and reviewing all of the great documentation there.
+```
+POST http://127.0.0.1:3000/v1/rds/{account}
+{
+   "Cluster":{
+      "AutoMinorVersionUpgrade":true,
+      "BackupRetentionPeriod":1,
+      "DBClusterIdentifier":"myaurora",
+      "Engine":"aurora",
+      "MasterUserPassword":"MyPassword",
+      "MasterUsername":"MyUser",
+      "StorageEncrypted":false,
+      "VpcSecurityGroupIds":[
+         "sg-12345678"
+      ]
+   },
+   "Instance":{
+      "DBClusterIdentifier":"myaurora",
+      "DBInstanceClass":"db.t2.small",
+      "DBInstanceIdentifier":"myaurora-1",
+      "Engine":"aurora",
+      "PubliclyAccessible":false,
+      "StorageEncrypted":false
+   }
+}
+```
 
-Good luck!
+### Getting details about a database
+
+To get details about a specific database instance:
+
+```
+GET http://127.0.0.1:3000/v1/rds/{account}/mypostgres
+{
+  "DBInstances": [
+    {
+      "AllocatedStorage": 20,
+      "AutoMinorVersionUpgrade": true,
+      "AvailabilityZone": "us-east-1d",
+      "BackupRetentionPeriod": 0,
+      "DBClusterIdentifier": null,
+      "DBInstanceClass": "db.t2.micro",
+      "DBInstanceIdentifier": "mypostgres",
+      "DBInstanceStatus": "available",
+      ...
+    }
+  ]
+}
+```
+
+To get details about _all_ database instances in the given account (to list both database instances and clusters you can add `all=true` query parameter):
+
+```
+GET http://127.0.0.1:3000/v1/rds/{account}[?all=true]
+```
+
+### Deleting a database
+
+By default, a final snapshot is not created when deleting a database instance. You can request that by adding `snapshot=true` query parameter.
+
+```
+DELETE http://127.0.0.1:3000/v1/rds/{account}/mypostgres[?snapshot=true]
+```
+
+## Development
+
+- Install Buffalo framework (v0.12+): https://gobuffalo.io/en/docs/installation
+- Run `buffalo dev` to start the app locally
+- Run `buffalo tests -v` to run all tests
+
+## Authors
+
+Tenyo Grozev <tenyo.grozev@yale.edu>
 
 [Powered by Buffalo](http://gobuffalo.io)
