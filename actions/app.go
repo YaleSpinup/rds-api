@@ -7,8 +7,8 @@ import (
 	"github.com/YaleSpinup/rds-api/pkg/common"
 	"github.com/YaleSpinup/rds-api/pkg/rds"
 	"github.com/gobuffalo/buffalo"
-	"github.com/gobuffalo/buffalo/middleware"
 	"github.com/gobuffalo/envy"
+	paramlogger "github.com/gobuffalo/mw-paramlogger"
 
 	"github.com/gobuffalo/x/sessions"
 	"github.com/rs/cors"
@@ -39,7 +39,7 @@ func App() *buffalo.App {
 		})
 
 		if ENV == "development" {
-			app.Use(middleware.ParameterLogger)
+			app.Use(paramlogger.ParameterLogger)
 		}
 
 		// load json config
@@ -82,7 +82,7 @@ func validateAccount(next buffalo.Handler) buffalo.Handler {
 	return func(c buffalo.Context) error {
 		if _, ok := RDS[c.Param("account")]; !ok {
 			log.Printf("Account not found: %s", c.Param("account"))
-			return c.Error(400, errors.New("Bad request"))
+			return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
 		}
 		return next(c)
 	}

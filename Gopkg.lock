@@ -126,7 +126,6 @@
   packages = [
     ".",
     "binding",
-    "middleware",
     "middleware/csrf",
     "render",
     "servers",
@@ -146,17 +145,6 @@
   pruneopts = "UT"
   revision = "45cc40b39a59d454a2e6ef82821b9c01df2d3fa4"
   version = "v1.6.3"
-
-[[projects]]
-  digest = "1:0d5deef22aeb6c2d065965567f84f7fe13b0475fb5e3cfebda12ab1a395d81c0"
-  name = "github.com/gobuffalo/buffalo-pop"
-  packages = [
-    "pop",
-    "pop/popmw",
-  ]
-  pruneopts = "UT"
-  revision = "73ba7b27c8ed804d59bf8b99e8b78303db1d9c66"
-  version = "v1.1.3"
 
 [[projects]]
   digest = "1:a444e525918a7b6ca19cbcf3e56d6949ced74c9932b9312d227e632c6dbb2942"
@@ -249,14 +237,6 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "8c6cef77dab37aae772fe8646c2f14481d2f260c"
-
-[[projects]]
-  branch = "master"
-  digest = "1:5333c9c62a1e737c1a478c3c7ad02c69b5504d0cdd35c73a75890959ee2a4afb"
-  name = "github.com/gobuffalo/mw-contenttype"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "74f5a47f4d56946ce59a0179c76bd2bc112c1b85"
 
 [[projects]]
   branch = "master"
@@ -839,9 +819,9 @@
     "github.com/aws/aws-sdk-go/service/rds",
     "github.com/aws/aws-sdk-go/service/rds/rdsiface",
     "github.com/gobuffalo/buffalo",
-    "github.com/gobuffalo/buffalo/middleware",
     "github.com/gobuffalo/buffalo/render",
     "github.com/gobuffalo/envy",
+    "github.com/gobuffalo/mw-paramlogger",
     "github.com/gobuffalo/packr",
     "github.com/gobuffalo/suite",
     "github.com/gobuffalo/x/sessions",
