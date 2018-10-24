@@ -115,6 +115,12 @@ The API will check if the database instance belongs to a cluster and will automa
 - Run `buffalo dev` to start the app locally
 - Run `buffalo tests -v` to run all tests
 
+To build a container locally for testing:
+```
+$ docker build -t rds-api -f docker/Dockerfile.local .
+$ docker run --rm -p 3000:3000 rds-api
+```
+
 ## Authors
 
 Tenyo Grozev <tenyo.grozev@yale.edu>
