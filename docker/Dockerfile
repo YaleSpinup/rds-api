@@ -6,8 +6,9 @@ RUN mkdir -p $GOPATH/src/github.com/YaleSpinup/rds-api
 WORKDIR $GOPATH/src/github.com/YaleSpinup/rds-api
 
 ADD . .
+RUN go version
 RUN dep ensure
-RUN buffalo build --static -o /bin/app
+RUN buffalo build --static -o /bin/api
 
 FROM alpine
 RUN apk add --no-cache bash
@@ -17,16 +18,18 @@ RUN apk add --no-cache wget python gettext && \
     unzip awscli-bundle.zip && \
     ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws && \
     /usr/local/bin/aws --version
-    
-WORKDIR /bin/
 
-COPY --from=builder /bin/app .
-COPY docker/import_config.sh /bin
+WORKDIR /app/
+
+COPY --from=builder /bin/api ./
+COPY docker/import_config.sh ./
 
 ENV GO_ENV=production
 ENV PORT=8080
 ENV ADDR=0.0.0.0
-
 EXPOSE 8080
 
-CMD /bin/import_config.sh && /bin/app
+RUN chown -R nobody:nogroup .
+USER nobody
+
+CMD ./import_config.sh && ./api

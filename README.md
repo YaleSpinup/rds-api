@@ -117,8 +117,12 @@ The API will check if the database instance belongs to a cluster and will automa
 
 To build a container locally for testing:
 ```
-$ docker build -t rds-api -f docker/Dockerfile.local .
-$ docker run --rm -p 3000:3000 rds-api
+$ cd docker/
+$ docker-compose up -d
+$ curl http://localhost:8080/v1/rds/ping
+pong
+# do your work, then shut it down
+$ docker-compose down
 ```
 
 ## Authors

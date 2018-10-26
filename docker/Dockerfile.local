@@ -6,16 +6,17 @@ RUN mkdir -p $GOPATH/src/github.com/YaleSpinup/rds-api
 WORKDIR $GOPATH/src/github.com/YaleSpinup/rds-api
 
 ADD . .
+RUN go version
 RUN dep ensure
-RUN buffalo build --static -o /bin/app
+RUN buffalo build --static -o /bin/api
 
 FROM alpine
 RUN apk add --no-cache bash
 RUN apk add --no-cache ca-certificates
     
-WORKDIR /bin/
+WORKDIR /app/
 
-COPY --from=builder /bin/app .
+COPY --from=builder /bin/api ./api
 
 # copy local config.json file
 COPY config/config.json ./config/
@@ -23,7 +24,9 @@ COPY config/config.json ./config/
 ENV GO_ENV=development
 ENV PORT=8080
 ENV ADDR=0.0.0.0
-
 EXPOSE 8080
 
-CMD exec /bin/app
+RUN chown -R nobody:nogroup .
+USER nobody
+
+CMD exec /app/api

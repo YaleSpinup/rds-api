@@ -10,8 +10,9 @@ if [ -n "$S3URL" ]; then
     echo "ERROR: aws-cli not found!"
     exit 1
   fi
+  mkdir config
   aws --region us-east-1 s3 cp ${S3URL} ./config.encrypted
-  aws --region us-east-1 kms decrypt --ciphertext-blob fileb://config.encrypted --output text --query Plaintext | base64 -d > app/config/config.json
+  aws --region us-east-1 kms decrypt --ciphertext-blob fileb://config.encrypted --output text --query Plaintext | base64 -d > config/config.json
   rm -f config.encrypted
 else
   echo "ERROR: S3URL variable not set!"
