@@ -21,6 +21,7 @@ RUN apk add --no-cache wget python gettext && \
 WORKDIR /bin/
 
 COPY --from=builder /bin/app .
+COPY docker/import_config.sh /bin
 
 ENV GO_ENV=production
 ENV PORT=8080

@@ -21,8 +21,9 @@ COPY --from=builder /bin/app .
 COPY config/config.json ./config/
 
 ENV GO_ENV=development
+ENV PORT=8080
 ENV ADDR=0.0.0.0
 
-EXPOSE 3000
+EXPOSE 8080
 
 CMD exec /bin/app
