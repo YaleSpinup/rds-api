@@ -111,7 +111,8 @@ The API will check if the database instance belongs to a cluster and will automa
 
 ## Development
 
-- Install Buffalo framework (v0.12+): https://gobuffalo.io/en/docs/installation
+- Install Buffalo framework (v0.13+): https://gobuffalo.io/en/docs/installation
+- Run `buffalo setup` to install required dependencies
 - Run `buffalo dev` to start the app locally
 - Run `buffalo tests -v` to run all tests
 

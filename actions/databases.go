@@ -11,9 +11,50 @@ import (
 	"github.com/gobuffalo/buffalo"
 )
 
-// DatabasesGet gets a list of databases for a given account
-//   If a {db} param is given it will return information about the specific database instance, otherwise
-//   all database instances will be returned.
+// DatabasesList gets a list of databases for a given account
+//   If the `all=true` parameter is passed it will return a list of clusters in addition to instances.
+func DatabasesList(c buffalo.Context) error {
+	// if all param is given, we'll return information about both instances and clusters
+	// otherwise, only database instances will be returned
+	all := false
+	if b, err := strconv.ParseBool(c.Param("all")); err == nil {
+		all = b
+	}
+
+	rdsClient := RDS[c.Param("account")]
+	var clustersOutput *rds.DescribeDBClustersOutput
+	var instancesOutput *rds.DescribeDBInstancesOutput
+	var err error
+
+	if all {
+		clustersOutput, err = rdsClient.Service.DescribeDBClusters(&rds.DescribeDBClustersInput{})
+		if err != nil {
+			log.Println(err.Error())
+		}
+	}
+
+	instancesOutput, err = rdsClient.Service.DescribeDBInstances(&rds.DescribeDBInstancesInput{})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			log.Println(aerr.Error())
+			return c.Error(400, aerr)
+		} else {
+			log.Println(err.Error())
+			return err
+		}
+	}
+
+	output := struct {
+		*rds.DescribeDBClustersOutput
+		*rds.DescribeDBInstancesOutput
+	}{
+		clustersOutput,
+		instancesOutput,
+	}
+	return c.Render(200, r.JSON(output))
+}
+
+// DatabasesGet gets details about a specific database
 //   If the `all=true` parameter is passed it will return a list of clusters in addition to instances.
 func DatabasesGet(c buffalo.Context) error {
 	// if all param is given, we'll return information about both instances and clusters
@@ -24,46 +65,45 @@ func DatabasesGet(c buffalo.Context) error {
 	}
 
 	rdsClient := RDS[c.Param("account")]
-	var outputClusters *rds.DescribeDBClustersOutput
-	var outputInstances *rds.DescribeDBInstancesOutput
+	var clustersOutput *rds.DescribeDBClustersOutput
+	var instancesOutput *rds.DescribeDBInstancesOutput
 	var err error
 	clusterNotFound := true
 
 	if all {
+		// search clusters for the given db name
 		clusterNotFound = false
-		inputClusters := &rds.DescribeDBClustersInput{
+		clustersInput := &rds.DescribeDBClustersInput{
 			DBClusterIdentifier: aws.String(c.Param("db")),
 		}
-
-		outputClusters, err = rdsClient.Service.DescribeDBClusters(inputClusters)
+		clustersOutput, err = rdsClient.Service.DescribeDBClusters(clustersInput)
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case rds.ErrCodeDBClusterNotFoundFault:
+				if aerr.Code() == rds.ErrCodeDBClusterNotFoundFault {
 					log.Println(rds.ErrCodeDBClusterNotFoundFault, aerr.Error())
 					clusterNotFound = true
-				default:
+				} else {
 					log.Println(aerr.Error())
 				}
+			} else {
+				log.Println(err.Error())
 			}
-			log.Println(err.Error())
 		}
 	}
 
-	inputInstances := &rds.DescribeDBInstancesInput{
+	// search instances for the given db name
+	instancesInput := &rds.DescribeDBInstancesInput{
 		DBInstanceIdentifier: aws.String(c.Param("db")),
 	}
-
-	outputInstances, err = rdsClient.Service.DescribeDBInstances(inputInstances)
+	instancesOutput, err = rdsClient.Service.DescribeDBInstances(instancesInput)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case rds.ErrCodeDBInstanceNotFoundFault:
+			if aerr.Code() == rds.ErrCodeDBInstanceNotFoundFault {
 				log.Println(rds.ErrCodeDBInstanceNotFoundFault, aerr.Error())
 				if clusterNotFound {
 					return c.Error(404, aerr)
 				}
-			default:
+			} else {
 				log.Println(aerr.Error())
 				return c.Error(400, aerr)
 			}
@@ -77,8 +117,8 @@ func DatabasesGet(c buffalo.Context) error {
 		*rds.DescribeDBClustersOutput
 		*rds.DescribeDBInstancesOutput
 	}{
-		outputClusters,
-		outputInstances,
+		clustersOutput,
+		instancesOutput,
 	}
 	return c.Render(200, r.JSON(output))
 }
@@ -110,7 +150,7 @@ func DatabasesPost(c buffalo.Context) error {
 			input.Cluster.DBSubnetGroupName = aws.String(rdsClient.DefaultSubnet)
 		}
 
-		resultCluster, err := rdsClient.Service.CreateDBCluster(input.Cluster)
+		clusterOutput, err := rdsClient.Service.CreateDBCluster(input.Cluster)
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
 				log.Println(aerr.Error())
@@ -119,7 +159,7 @@ func DatabasesPost(c buffalo.Context) error {
 			log.Println(err.Error())
 			return err
 		}
-		log.Println("Created RDS cluster", resultCluster)
+		log.Println("Created RDS cluster", clusterOutput)
 	}
 
 	// create rds instance
@@ -127,7 +167,7 @@ func DatabasesPost(c buffalo.Context) error {
 		input.Instance.DBSubnetGroupName = aws.String(rdsClient.DefaultSubnet)
 	}
 
-	resultInstance, err := rdsClient.Service.CreateDBInstance(input.Instance)
+	instanceOutput, err := rdsClient.Service.CreateDBInstance(input.Instance)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			log.Println(aerr.Error())
@@ -136,9 +176,9 @@ func DatabasesPost(c buffalo.Context) error {
 		log.Println(err.Error())
 		return err
 	}
-	log.Println("Created RDS instance", resultInstance)
+	log.Println("Created RDS instance", instanceOutput)
 
-	return c.Render(200, r.JSON(resultInstance))
+	return c.Render(200, r.JSON(instanceOutput))
 }
 
 // DatabasesDelete deletes a database in a given account
@@ -153,8 +193,8 @@ func DatabasesDelete(c buffalo.Context) error {
 	}
 
 	rdsClient := RDS[c.Param("account")]
-	var inputInstance *rds.DeleteDBInstanceInput
-	var inputCluster *rds.DeleteDBClusterInput
+	var instanceInput *rds.DeleteDBInstanceInput
+	var clusterInput *rds.DeleteDBClusterInput
 
 	// first, let's determine if the given database instance belongs to a cluster
 	var clusterName *string
@@ -182,33 +222,33 @@ func DatabasesDelete(c buffalo.Context) error {
 
 	if snapshot && clusterName == nil {
 		log.Printf("Deleting database %s and creating final snapshot", c.Param("db"))
-		inputInstance = &rds.DeleteDBInstanceInput{
+		instanceInput = &rds.DeleteDBInstanceInput{
 			DBInstanceIdentifier:      aws.String(c.Param("db")),
 			FinalDBSnapshotIdentifier: aws.String("final-" + c.Param("db")),
 			SkipFinalSnapshot:         aws.Bool(false),
 		}
 	} else {
 		log.Printf("Deleting database %s without creating final snapshot", c.Param("db"))
-		inputInstance = &rds.DeleteDBInstanceInput{
+		instanceInput = &rds.DeleteDBInstanceInput{
 			DBInstanceIdentifier: aws.String(c.Param("db")),
 			SkipFinalSnapshot:    aws.Bool(true),
 		}
 	}
 
-	outputInstance, err := rdsClient.Service.DeleteDBInstance(inputInstance)
+	instanceOutput, err := rdsClient.Service.DeleteDBInstance(instanceInput)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
-			switch aerr.Code() {
-			case rds.ErrCodeDBInstanceNotFoundFault:
+			if aerr.Code() == rds.ErrCodeDBInstanceNotFoundFault {
 				log.Println(rds.ErrCodeDBInstanceNotFoundFault, aerr.Error())
 				return c.Error(404, aerr)
-			default:
+			} else {
 				log.Println(aerr.Error())
 				return c.Error(400, aerr)
 			}
+		} else {
+			log.Println(err.Error())
+			return err
 		}
-		log.Println(err.Error())
-		return err
 	}
 
 	// check if this database instance was part of a cluster
@@ -216,36 +256,35 @@ func DatabasesDelete(c buffalo.Context) error {
 	if clusterName != nil {
 		if snapshot {
 			log.Printf("Trying to delete associated database cluster %s with final snapshot", *clusterName)
-			inputCluster = &rds.DeleteDBClusterInput{
+			clusterInput = &rds.DeleteDBClusterInput{
 				DBClusterIdentifier:       clusterName,
 				FinalDBSnapshotIdentifier: aws.String("final-" + *clusterName),
 				SkipFinalSnapshot:         aws.Bool(false),
 			}
 		} else {
 			log.Printf("Trying to delete associated database cluster %s", *clusterName)
-			inputCluster = &rds.DeleteDBClusterInput{
+			clusterInput = &rds.DeleteDBClusterInput{
 				DBClusterIdentifier: clusterName,
 				SkipFinalSnapshot:   aws.Bool(true),
 			}
 		}
 
 		// the cluster deletion will fail if there are still member instances in the cluster
-		outputCluster, err := rdsClient.Service.DeleteDBCluster(inputCluster)
+		clusterOutput, err := rdsClient.Service.DeleteDBCluster(clusterInput)
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case rds.ErrCodeDBClusterNotFoundFault:
+				if aerr.Code() == rds.ErrCodeDBClusterNotFoundFault {
 					log.Println(rds.ErrCodeDBClusterNotFoundFault, aerr.Error())
-				default:
+				} else {
 					log.Println(aerr.Error())
 				}
 			} else {
 				log.Println(err.Error())
 			}
 		} else {
-			log.Println("Successfully requested deletion of database cluster", *clusterName, outputCluster)
+			log.Println("Successfully requested deletion of database cluster", *clusterName, clusterOutput)
 		}
 	}
 
-	return c.Render(200, r.JSON(outputInstance))
+	return c.Render(200, r.JSON(instanceOutput))
 }

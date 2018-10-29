@@ -55,7 +55,7 @@ func App() *buffalo.App {
 		rdsV1API := app.Group("/v1/rds/{account}")
 		rdsV1API.Use(sharedTokenAuth(AppConfig.Token), validateAccount)
 		rdsV1API.POST("/", DatabasesPost)
-		rdsV1API.GET("/", DatabasesGet)
+		rdsV1API.GET("/", DatabasesList)
 		rdsV1API.GET("/{db}", DatabasesGet)
 		rdsV1API.DELETE("/{db}", DatabasesDelete)
 	}
