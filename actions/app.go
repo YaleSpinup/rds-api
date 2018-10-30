@@ -52,6 +52,7 @@ func App() *buffalo.App {
 
 		app.GET("/v1/rds/ping", PingPong)
 
+		// the validateAccount middleware will automatically check that the {account} is valid
 		rdsV1API := app.Group("/v1/rds/{account}")
 		rdsV1API.Use(sharedTokenAuth(AppConfig.Token), validateAccount)
 		rdsV1API.POST("/", DatabasesPost)

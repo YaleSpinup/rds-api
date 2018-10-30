@@ -4,13 +4,13 @@
       "region": "us-east-1",
       "akid": "AKID",
       "secret": "SECRET",
-      "defaultSubnet": "default-subnets"
+      "defaultSubnetGroup": "default-subnets"
     },
     "prod": {
       "region": "us-east-1",
       "akid": "AKID",
       "secret": "SECRET",
-      "defaultSubnet": "default-subnets"
+      "defaultSubnetGroup": "default-subnets"
     }
   },
   "token": "TOKEN"
