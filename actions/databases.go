@@ -11,6 +11,9 @@ import (
 	"github.com/gobuffalo/buffalo"
 )
 
+// DatabaseCreateInput is the input for creating a new database
+// The Instance part is required and defines the database instance properties
+// The Cluster is optional if the created database instance belongs to a new cluster
 type DatabaseCreateInput struct {
 	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBClusterInput
 	Cluster *rds.CreateDBClusterInput
@@ -28,7 +31,11 @@ func DatabasesList(c buffalo.Context) error {
 		all = b
 	}
 
-	rdsClient := RDS[c.Param("account")]
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
 	var clustersOutput *rds.DescribeDBClustersOutput
 	var instancesOutput *rds.DescribeDBInstancesOutput
 	var err error
@@ -68,7 +75,11 @@ func DatabasesGet(c buffalo.Context) error {
 		all = b
 	}
 
-	rdsClient := RDS[c.Param("account")]
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
 	var clustersOutput *rds.DescribeDBClustersOutput
 	var instancesOutput *rds.DescribeDBInstancesOutput
 	var err error
@@ -133,7 +144,11 @@ func DatabasesPost(c buffalo.Context) error {
 		return c.Error(400, errors.New("Bad request"))
 	}
 
-	rdsClient := RDS[c.Param("account")]
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
 	var clusterOutput *rds.CreateDBClusterOutput
 	var instanceOutput *rds.CreateDBInstanceOutput
 	var err error
@@ -201,7 +216,11 @@ func DatabasesDelete(c buffalo.Context) error {
 		snapshot = b
 	}
 
-	rdsClient := RDS[c.Param("account")]
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
 	var clusterOutput *rds.DeleteDBClusterOutput
 	var instanceOutput *rds.DeleteDBInstanceOutput
 	var err error

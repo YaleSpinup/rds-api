@@ -47,14 +47,13 @@ func App() *buffalo.App {
 
 		// create a shared RDS session for each account
 		for account, c := range AppConfig.Accounts {
-			RDS[account] = rds.NewSession(c) //.Akid, c.Secret, c.Region)
+			RDS[account] = rds.NewSession(c)
 		}
 
 		app.GET("/v1/rds/ping", PingPong)
 
-		// the validateAccount middleware will automatically check that the {account} is valid
 		rdsV1API := app.Group("/v1/rds/{account}")
-		rdsV1API.Use(sharedTokenAuth(AppConfig.Token), validateAccount)
+		rdsV1API.Use(sharedTokenAuth(AppConfig.Token))
 		rdsV1API.POST("/", DatabasesPost)
 		rdsV1API.GET("/", DatabasesList)
 		rdsV1API.GET("/{db}", DatabasesGet)
@@ -75,16 +74,5 @@ func sharedTokenAuth(token string) buffalo.MiddlewareFunc {
 			}
 			return next(c)
 		}
-	}
-}
-
-// validateAccount middleware validates the account
-func validateAccount(next buffalo.Handler) buffalo.Handler {
-	return func(c buffalo.Context) error {
-		if _, ok := RDS[c.Param("account")]; !ok {
-			log.Printf("Account not found: %s", c.Param("account"))
-			return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
-		}
-		return next(c)
 	}
 }
