@@ -105,7 +105,9 @@ func DatabasesGet(c buffalo.Context) error {
 				return c.Error(400, aerr)
 			}
 		}
-		return err
+		if clusterNotFound {
+			return err
+		}
 	}
 
 	output := struct {
@@ -157,6 +159,19 @@ func DatabasesPost(c buffalo.Context) error {
 	}
 	if instanceOutput, err = rdsClient.Service.CreateDBInstanceWithContext(c, input.Instance); err != nil {
 		log.Println(err.Error())
+		if input.Cluster != nil {
+			// if this instance was in a new cluster, delete the cluster
+			log.Println("Deleting cluster", *input.Cluster.DBClusterIdentifier)
+			clusterInput := &rds.DeleteDBClusterInput{
+				DBClusterIdentifier: input.Cluster.DBClusterIdentifier,
+				SkipFinalSnapshot:   aws.Bool(true),
+			}
+			if _, errc := rdsClient.Service.DeleteDBClusterWithContext(c, clusterInput); errc != nil {
+				log.Println("Failed to delete cluster", errc.Error())
+			} else {
+				log.Println("Successfully requested deletion of cluster", *input.Cluster.DBClusterIdentifier)
+			}
+		}
 		if aerr, ok := err.(awserr.Error); ok {
 			return c.Error(400, aerr)
 		}
@@ -237,6 +252,7 @@ func DatabasesDelete(c buffalo.Context) error {
 		}
 		return err
 	}
+	log.Println("Successfully requested deletion of database instance", c.Param("db"), instanceOutput)
 
 	// check if this database instance was part of a cluster
 	// and delete the cluster (if this was the last member instance)

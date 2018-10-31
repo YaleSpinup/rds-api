@@ -21,7 +21,7 @@ POST http://127.0.0.1:3000/v1/rds/{account}
       "AllocatedStorage":20,
       "AutoMinorVersionUpgrade":true,
       "BackupRetentionPeriod":0,
-      "DBInstanceClass":"db.t2.micro",
+      "DBInstanceClass":"db.t2.small",
       "DBInstanceIdentifier":"mypostgres",
       "Engine":"postgres",
       "MasterUserPassword":"MyPassword",
