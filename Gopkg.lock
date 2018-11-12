@@ -126,7 +126,6 @@
   packages = [
     ".",
     "binding",
-    "middleware",
     "middleware/csrf",
     "render",
     "servers",
@@ -146,17 +145,6 @@
   pruneopts = "UT"
   revision = "45cc40b39a59d454a2e6ef82821b9c01df2d3fa4"
   version = "v1.6.3"
-
-[[projects]]
-  digest = "1:54ce23611d7c26c7c0fefc58f595db357c495d288217d087d3e55e421025d1e0"
-  name = "github.com/gobuffalo/buffalo-pop"
-  packages = [
-    "pop",
-    "pop/popmw",
-  ]
-  pruneopts = "UT"
-  revision = "316bdb5cb68ebc4f29d675941a3bf58fafa096e0"
-  version = "v1.1.13"
 
 [[projects]]
   digest = "1:a444e525918a7b6ca19cbcf3e56d6949ced74c9932b9312d227e632c6dbb2942"
@@ -839,9 +827,9 @@
     "github.com/aws/aws-sdk-go/service/rds",
     "github.com/aws/aws-sdk-go/service/rds/rdsiface",
     "github.com/gobuffalo/buffalo",
-    "github.com/gobuffalo/buffalo/middleware",
     "github.com/gobuffalo/buffalo/render",
     "github.com/gobuffalo/envy",
+    "github.com/gobuffalo/mw-contenttype",
     "github.com/gobuffalo/mw-paramlogger",
     "github.com/gobuffalo/packr",
     "github.com/gobuffalo/suite",

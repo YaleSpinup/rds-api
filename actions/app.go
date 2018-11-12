@@ -7,8 +7,8 @@ import (
 	"github.com/YaleSpinup/rds-api/pkg/common"
 	"github.com/YaleSpinup/rds-api/pkg/rds"
 	"github.com/gobuffalo/buffalo"
-	"github.com/gobuffalo/buffalo/middleware"
 	"github.com/gobuffalo/envy"
+	contenttype "github.com/gobuffalo/mw-contenttype"
 	paramlogger "github.com/gobuffalo/mw-paramlogger"
 
 	"github.com/gobuffalo/x/sessions"
@@ -40,7 +40,7 @@ func App() *buffalo.App {
 		})
 
 		// Set the request content type to JSON
-		app.Use(middleware.SetContentType("application/json"))
+		app.Use(contenttype.Set("application/json"))
 
 		if ENV == "development" {
 			app.Use(paramlogger.ParameterLogger)
