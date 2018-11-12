@@ -43,6 +43,7 @@ func App() *buffalo.App {
 		app.Use(contenttype.Set("application/json"))
 
 		if ENV == "development" {
+			log.Println("Running in development mode")
 			app.Use(paramlogger.ParameterLogger)
 		}
 
