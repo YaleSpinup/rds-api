@@ -57,6 +57,7 @@ func App() *buffalo.App {
 		rdsV1API.POST("/", DatabasesPost)
 		rdsV1API.GET("/", DatabasesList)
 		rdsV1API.GET("/{db}", DatabasesGet)
+		rdsV1API.PUT("/{db}", DatabasesPut)
 		rdsV1API.DELETE("/{db}", DatabasesDelete)
 	}
 

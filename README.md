@@ -99,6 +99,22 @@ To get details about _all_ database instances in the given account (to list both
 GET http://127.0.0.1:3000/v1/rds/{account}[?all=true]
 ```
 
+### Modifying database parameters
+
+You can specify either cluster or instance parameters in the PUT to modify a cluster or an instance.
+
+For example, to change the master password for an Aurora cluster:
+
+```
+PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora
+{
+   "Cluster": {
+      "MasterUserPassword": "EXAMPLE",
+      "ApplyImmediately": true
+   }
+}
+```
+
 ### Deleting a database
 
 By default, a final snapshot is _not_ created when deleting a database instance. You can override that by adding `snapshot=true` query parameter.
