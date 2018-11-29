@@ -21,6 +21,14 @@ type DatabaseCreateInput struct {
 	Instance *rds.CreateDBInstanceInput
 }
 
+// DatabaseModifyInput is the input for modifying an existing database
+type DatabaseModifyInput struct {
+	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#ModifyDBClusterInput
+	Cluster *rds.ModifyDBClusterInput
+	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#ModifyDBInstanceInput
+	Instance *rds.ModifyDBInstanceInput
+}
+
 // DatabasesList gets a list of databases for a given account
 // If the `all=true` parameter is passed it will return a list of clusters in addition to instances.
 func DatabasesList(c buffalo.Context) error {
@@ -197,6 +205,62 @@ func DatabasesPost(c buffalo.Context) error {
 	output := struct {
 		*rds.CreateDBClusterOutput
 		*rds.CreateDBInstanceOutput
+	}{
+		clusterOutput,
+		instanceOutput,
+	}
+
+	return c.Render(200, r.JSON(output))
+}
+
+// DatabasesPut modifies a database in a given account
+// Either Cluster or Instance input parameters can be specified for a request
+func DatabasesPut(c buffalo.Context) error {
+	input := DatabaseModifyInput{}
+	if err := c.Bind(&input); err != nil {
+		log.Println(err)
+		return c.Error(400, err)
+	}
+	if (input.Cluster == nil && input.Instance == nil) || (input.Cluster != nil && input.Instance != nil) {
+		return c.Error(400, errors.New("Bad request"))
+	}
+
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
+	var clusterOutput *rds.ModifyDBClusterOutput
+	var instanceOutput *rds.ModifyDBInstanceOutput
+	var err error
+
+	if input.Cluster != nil {
+		input.Cluster.DBClusterIdentifier = aws.String(c.Param("db"))
+		if clusterOutput, err = rdsClient.Service.ModifyDBClusterWithContext(c, input.Cluster); err != nil {
+			log.Println(err.Error())
+			if aerr, ok := err.(awserr.Error); ok {
+				return c.Error(400, aerr)
+			}
+			return err
+		}
+		log.Println("Modified RDS cluster", clusterOutput)
+	}
+
+	if input.Instance != nil {
+		input.Instance.DBInstanceIdentifier = aws.String(c.Param("db"))
+		if instanceOutput, err = rdsClient.Service.ModifyDBInstanceWithContext(c, input.Instance); err != nil {
+			log.Println(err.Error())
+			if aerr, ok := err.(awserr.Error); ok {
+				return c.Error(400, aerr)
+			}
+			return err
+		}
+		log.Println("Modified RDS instance", instanceOutput)
+	}
+
+	output := struct {
+		*rds.ModifyDBClusterOutput
+		*rds.ModifyDBInstanceOutput
 	}{
 		clusterOutput,
 		instanceOutput,
