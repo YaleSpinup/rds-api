@@ -18,10 +18,12 @@ type Config struct {
 
 // Account is the configuration for an individual account
 type Account struct {
-	Region             string
-	Akid               string
-	Secret             string
-	DefaultSubnetGroup string
+	Region                             string
+	Akid                               string
+	Secret                             string
+	DefaultSubnetGroup                 string
+	DefaultDBParameterGroupName        map[string]string
+	DefaultDBClusterParameterGroupName map[string]string
 }
 
 // LoadConfig loads the JSON configuration from the specified filename and returns a Config struct

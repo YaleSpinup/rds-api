@@ -13,8 +13,10 @@ import (
 
 // Client struct contains the initialized RDS service and other RDS-related parameters
 type Client struct {
-	Service            rdsiface.RDSAPI
-	DefaultSubnetGroup string
+	Service                            rdsiface.RDSAPI
+	DefaultSubnetGroup                 string
+	DefaultDBParameterGroupName        map[string]string
+	DefaultDBClusterParameterGroupName map[string]string
 }
 
 // NewSession creates an AWS session for RDS and returns an RDSClient
@@ -26,7 +28,9 @@ func NewSession(c common.Account) Client {
 	}))
 
 	return Client{
-		Service:            rds.New(sess),
-		DefaultSubnetGroup: c.DefaultSubnetGroup,
+		Service:                            rds.New(sess),
+		DefaultSubnetGroup:                 c.DefaultSubnetGroup,
+		DefaultDBParameterGroupName:        c.DefaultDBParameterGroupName,
+		DefaultDBClusterParameterGroupName: c.DefaultDBClusterParameterGroupName,
 	}
 }

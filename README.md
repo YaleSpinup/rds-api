@@ -6,7 +6,16 @@ This API provides simple restful API access to Amazon's RDS service.
 
 This API uses the standard format for input and output of parameters as defined by the AWS SDK (for reference see https://docs.aws.amazon.com/sdk-for-go/api/service/rds/).
 
+### Config
+
 You can define multiple _accounts_ in your `config.json` file which are mapped to endpoints by the API and allow RDS instances to be created in different AWS accounts. See [example config](config/config.example.json)
+
+In each account you can optionally define certain defaults that will be used if those parameters are not specified in the POST request when creating a database:
+  - `defaultSubnetGroup` - the subnet group that will be used if one is not given
+  - `defaultDBParameterGroupName` - map of ParameterGroupFamily to ParameterGroupName's
+  - `defaultDBClusterParameterGroupName` - map of ParameterGroupFamily to ClusterParameterGroupName's
+
+_Note that any default parameters need to refer to existing resources (groups), i.e. they need to be created separately outside of this API._
 
 ### Creating a database
 
