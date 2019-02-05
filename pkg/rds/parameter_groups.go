@@ -8,10 +8,11 @@ import (
 
 // DetermineParameterGroupFamily returns the DBParameterGroupFamily based on the
 // given database Engine and EngineVersion
-func (cl Client) DetermineParameterGroupFamily(e, ev *string) (string, error) {
+// e.g. given engine "postgres" and engineVersion "10.5" it will return "postgres10"
+func (cl Client) DetermineParameterGroupFamily(engine, engineVersion *string) (string, error) {
 	input := &rds.DescribeDBEngineVersionsInput{
-		Engine:        e,
-		EngineVersion: ev,
+		Engine:        engine,
+		EngineVersion: engineVersion,
 	}
 
 	evResult, err := cl.Service.DescribeDBEngineVersions(input)
