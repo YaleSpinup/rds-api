@@ -163,9 +163,27 @@ func DatabasesPost(c buffalo.Context) error {
 
 	// create rds cluster first, if specified
 	if input.Cluster != nil {
+		// set default subnet group
 		if input.Cluster.DBSubnetGroupName == nil {
 			input.Cluster.DBSubnetGroupName = aws.String(rdsClient.DefaultSubnetGroup)
 		}
+		// set default cluster parameter group
+		if input.Cluster.DBClusterParameterGroupName == nil {
+			pgFamily, pgErr := rdsClient.DetermineParameterGroupFamily(input.Cluster.Engine, input.Cluster.EngineVersion)
+			if pgErr != nil {
+				log.Println(pgErr.Error())
+				return c.Error(400, pgErr)
+			}
+			log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
+			cPg, ok := rdsClient.DefaultDBClusterParameterGroupName[pgFamily]
+			if !ok {
+				log.Println("No matching DefaultDBClusterParameterGroupName found in config, using AWS default PG")
+			} else {
+				log.Println("Using DefaultDBClusterParameterGroupName:", cPg)
+				input.Cluster.DBClusterParameterGroupName = aws.String(cPg)
+			}
+		}
+
 		if clusterOutput, err = rdsClient.Service.CreateDBClusterWithContext(c, input.Cluster); err != nil {
 			log.Println(err.Error())
 			if aerr, ok := err.(awserr.Error); ok {
@@ -177,9 +195,27 @@ func DatabasesPost(c buffalo.Context) error {
 	}
 
 	// create rds instance
+	// set default subnet group
 	if input.Instance.DBSubnetGroupName == nil {
 		input.Instance.DBSubnetGroupName = aws.String(rdsClient.DefaultSubnetGroup)
 	}
+	// set default parameter group
+	if input.Instance.DBParameterGroupName == nil {
+		pgFamily, pgErr := rdsClient.DetermineParameterGroupFamily(input.Instance.Engine, input.Instance.EngineVersion)
+		if pgErr != nil {
+			log.Println(pgErr.Error())
+			return c.Error(400, pgErr)
+		}
+		log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
+		pg, ok := rdsClient.DefaultDBParameterGroupName[pgFamily]
+		if !ok {
+			log.Println("No matching DefaultDBParameterGroupName found in config, using AWS default PG")
+		} else {
+			log.Println("Using DefaultDBParameterGroupName:", pg)
+			input.Instance.DBParameterGroupName = aws.String(pg)
+		}
+	}
+
 	if instanceOutput, err = rdsClient.Service.CreateDBInstanceWithContext(c, input.Instance); err != nil {
 		log.Println(err.Error())
 		if input.Cluster != nil {

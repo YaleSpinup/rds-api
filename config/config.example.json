@@ -10,7 +10,15 @@
       "region": "us-east-1",
       "akid": "AKID",
       "secret": "SECRET",
-      "defaultSubnetGroup": "default-subnets"
+      "defaultSubnetGroup": "default-subnets",
+      "defaultDBParameterGroupName": {
+        "postgres9.6": "my-postgres96",
+        "postgres10": "my-postgres10"
+      },
+      "defaultDBClusterParameterGroupName": {
+        "aurora5.6": "my-aurora56",
+        "aurora-mysql5.7": "my-aurora-mysql57"
+      }
     }
   },
   "token": "TOKEN"
