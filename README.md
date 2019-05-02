@@ -145,7 +145,7 @@ To build a container locally for testing:
 ```
 $ cd docker/
 $ docker-compose up -d
-$ curl http://localhost:8080/v1/rds/ping
+$ curl http://localhost:8088/v1/rds/ping
 pong
 # do your work, then shut it down
 $ docker-compose down
