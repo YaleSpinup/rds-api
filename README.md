@@ -124,6 +124,22 @@ PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora
 }
 ```
 
+### Updating tags for a database
+
+You can pass a list of tags (Key/Value pairs) to add or updated on the given database. If there is an RDS cluster and instance with the same name, the tags for both will be updated.
+
+```
+PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora
+{
+   "Tags": [
+      {
+         "Key": "NewTag",
+         "Value": "new"
+      }
+   ]
+}
+```
+
 ### Deleting a database
 
 By default, a final snapshot is _not_ created when deleting a database instance. You can override that by adding `snapshot=true` query parameter.

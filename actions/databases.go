@@ -27,6 +27,7 @@ type DatabaseModifyInput struct {
 	Cluster *rds.ModifyDBClusterInput
 	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#ModifyDBInstanceInput
 	Instance *rds.ModifyDBInstanceInput
+	Tags     []*rds.Tag
 }
 
 // DatabasesList gets a list of databases for a given account
@@ -251,14 +252,19 @@ func DatabasesPost(c buffalo.Context) error {
 
 // DatabasesPut modifies a database in a given account
 // Either Cluster or Instance input parameters can be specified for a request
+// Tags list can be given with any key/value tags to add/update
 func DatabasesPut(c buffalo.Context) error {
 	input := DatabaseModifyInput{}
 	if err := c.Bind(&input); err != nil {
 		log.Println(err)
 		return c.Error(400, err)
 	}
-	if (input.Cluster == nil && input.Instance == nil) || (input.Cluster != nil && input.Instance != nil) {
+	if input.Cluster == nil && input.Instance == nil && input.Tags == nil {
 		return c.Error(400, errors.New("Bad request"))
+	}
+
+	if input.Cluster != nil && input.Instance != nil {
+		return c.Error(400, errors.New("Bad request: cannot specify both Cluster and Instance"))
 	}
 
 	rdsClient, ok := RDS[c.Param("account")]
@@ -292,6 +298,33 @@ func DatabasesPut(c buffalo.Context) error {
 			return err
 		}
 		log.Println("Modified RDS instance", instanceOutput)
+	}
+
+	if input.Tags != nil {
+		log.Println("Updating tags for "+c.Param("db")+"\n", input.Tags)
+		tags := &rds.AddTagsToResourceInput{}
+		tags.Tags = input.Tags
+
+		// determine ARN(s) for this RDS resource
+		arns, arnErr := rdsClient.DetermineArn(aws.String(c.Param("db")))
+		if arnErr != nil {
+			log.Println(arnErr)
+			return c.Error(400, arnErr)
+		} else {
+			// update tags for all RDS resources with matching ARNs
+			for _, arn := range arns {
+				tags.ResourceName = aws.String(arn)
+				if _, err = rdsClient.Service.AddTagsToResourceWithContext(c, tags); err != nil {
+					log.Println(err.Error())
+					if aerr, ok := err.(awserr.Error); ok {
+						return c.Error(400, aerr)
+					}
+					return err
+				}
+				log.Println("Updated tags for RDS resource", arn)
+			}
+		}
+
 	}
 
 	output := struct {
