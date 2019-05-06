@@ -306,7 +306,7 @@ func DatabasesPut(c buffalo.Context) error {
 		tags.Tags = input.Tags
 
 		// determine ARN(s) for this RDS resource
-		arns, arnErr := rdsClient.DetermineArn(aws.String(c.Param("db")))
+		arns, arnErr := rdsClient.DetermineArn(c.Param("db"))
 		if arnErr != nil {
 			log.Println(arnErr)
 			return c.Error(400, arnErr)

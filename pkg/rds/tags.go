@@ -10,10 +10,11 @@ import (
 
 // DetermineArn returns the ARN for an RDS instance or cluster given the database name
 // It could return 2 ARNs if a cluster and instance with the same name exist
-func (cl Client) DetermineArn(db *string) ([]string, error) {
+func (cl Client) DetermineArn(dbName string) ([]string, error) {
 	arns := []string{}
 
-	log.Println("Trying to determine ARN for", *db)
+	log.Println("Trying to determine ARN for", dbName)
+	db := aws.String(dbName)
 
 	// search clusters for the given db name
 	clustersOutput, _ := cl.Service.DescribeDBClusters(&rds.DescribeDBClustersInput{
@@ -26,23 +27,19 @@ func (cl Client) DetermineArn(db *string) ([]string, error) {
 	})
 
 	if clustersOutput == nil && instancesOutput == nil {
-		return nil, errors.New("Unable to determine ARN for database " + *db)
+		return nil, errors.New("Unable to determine ARN for database " + dbName)
 	}
 
-	if len(clustersOutput.DBClusters) > 0 {
-		for _, cluster := range clustersOutput.DBClusters {
-			arns = append(arns, aws.StringValue(cluster.DBClusterArn))
-		}
+	for _, cluster := range clustersOutput.DBClusters {
+		arns = append(arns, aws.StringValue(cluster.DBClusterArn))
 	}
 
-	if len(instancesOutput.DBInstances) > 0 {
-		for _, instance := range instancesOutput.DBInstances {
-			arns = append(arns, aws.StringValue(instance.DBInstanceArn))
-		}
+	for _, instance := range instancesOutput.DBInstances {
+		arns = append(arns, aws.StringValue(instance.DBInstanceArn))
 	}
 
 	if len(arns) == 0 {
-		return nil, errors.New("Unable to determine ARN for database " + *db)
+		return nil, errors.New("Unable to determine ARN for database " + dbName)
 	}
 
 	return arns, nil
