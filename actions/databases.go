@@ -306,25 +306,24 @@ func DatabasesPut(c buffalo.Context) error {
 		tags.Tags = input.Tags
 
 		// determine ARN(s) for this RDS resource
-		arns, arnErr := rdsClient.DetermineArn(c.Param("db"))
-		if arnErr != nil {
-			log.Println(arnErr)
-			return c.Error(400, arnErr)
-		} else {
-			// update tags for all RDS resources with matching ARNs
-			for _, arn := range arns {
-				tags.ResourceName = aws.String(arn)
-				if _, err = rdsClient.Service.AddTagsToResourceWithContext(c, tags); err != nil {
-					log.Println(err.Error())
-					if aerr, ok := err.(awserr.Error); ok {
-						return c.Error(400, aerr)
-					}
-					return err
-				}
-				log.Println("Updated tags for RDS resource", arn)
-			}
+		arns, err := rdsClient.DetermineArn(c.Param("db"))
+		if err != nil {
+			log.Println(err)
+			return c.Error(400, err)
 		}
 
+		// update tags for all RDS resources with matching ARNs
+		for _, arn := range arns {
+			tags.ResourceName = aws.String(arn)
+			if _, err = rdsClient.Service.AddTagsToResourceWithContext(c, tags); err != nil {
+				log.Println(err.Error())
+				if aerr, ok := err.(awserr.Error); ok {
+					return c.Error(400, aerr)
+				}
+				return err
+			}
+			log.Println("Updated tags for RDS resource", arn)
+		}
 	}
 
 	output := struct {
