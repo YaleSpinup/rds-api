@@ -301,7 +301,7 @@ func DatabasesPut(c buffalo.Context) error {
 	}
 
 	if input.Tags != nil {
-		log.Println("Updating tags for "+c.Param("db")+"\n", input.Tags)
+		log.Println("Updating tags for "+c.Param("db"), input.Tags)
 		tags := &rds.AddTagsToResourceInput{}
 		tags.Tags = input.Tags
 
