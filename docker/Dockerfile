@@ -2,12 +2,14 @@
 # https://docs.docker.com/engine/userguide/eng-image/multistage-build/
 FROM gobuffalo/buffalo:v0.14.3 as builder
 
-RUN mkdir -p $GOPATH/src/github.com/YaleSpinup/rds-api
-WORKDIR $GOPATH/src/github.com/YaleSpinup/rds-api
-
+RUN mkdir /app
+WORKDIR /app
+ENV GO111MODULE=on 
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
 ADD . .
 RUN go version
-RUN dep ensure
 RUN buffalo build --static -o /bin/api
 
 FROM alpine
