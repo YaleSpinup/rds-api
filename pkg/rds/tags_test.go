@@ -19,12 +19,12 @@ func (m *mockRdsService) DescribeDBClusters(input *rds.DescribeDBClustersInput) 
 		return &rds.DescribeDBClustersOutput{}, nil
 	}
 
-	dbClusters := make([]*rds.DBCluster, 1)
-	dbClusters[0] = &rds.DBCluster{
-		DBClusterArn: aws.String("arn:aws:rds:us-east-1:123456789012:db:" + dbName),
-	}
 	return &rds.DescribeDBClustersOutput{
-		DBClusters: dbClusters,
+		DBClusters: []*rds.DBCluster{
+			&rds.DBCluster{
+				DBClusterArn: aws.String("arn:aws:rds:us-east-1:123456789012:db:" + dbName),
+			},
+		},
 	}, nil
 }
 
@@ -35,13 +35,12 @@ func (m *mockRdsService) DescribeDBInstances(input *rds.DescribeDBInstancesInput
 		return &rds.DescribeDBInstancesOutput{}, nil
 	}
 
-	dbInstances := make([]*rds.DBInstance, 1)
-	dbInstances[0] = &rds.DBInstance{
-		DBInstanceArn: aws.String("arn:aws:rds:us-east-1:123456789012:db:" + dbName),
-	}
-
 	return &rds.DescribeDBInstancesOutput{
-		DBInstances: dbInstances,
+		DBInstances: []*rds.DBInstance{
+			&rds.DBInstance{
+				DBInstanceArn: aws.String("arn:aws:rds:us-east-1:123456789012:db:" + dbName),
+			},
+		},
 	}, nil
 }
 
