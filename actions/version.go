@@ -14,7 +14,7 @@ func VersionHandler(c buffalo.Context) error {
 		BuildStamp string `json:"buildstamp"`
 	}{
 		fmt.Sprintf("%s%s", Version, VersionPrerelease),
-		githash,
-		buildstamp,
+		GitHash,
+		BuildStamp,
 	}))
 }

@@ -34,11 +34,11 @@ var (
 	// VersionPrerelease is a prerelease marker
 	VersionPrerelease = rdsapi.VersionPrerelease
 
-	// buildstamp is the timestamp the binary was built, it should be set at buildtime with ldflags
-	buildstamp = rdsapi.BuildStamp
+	// BuildStamp is the timestamp the binary was built, it should be set at buildtime with ldflags
+	BuildStamp = rdsapi.BuildStamp
 
-	// githash is the git sha of the built binary, it should be set at buildtime with ldflags
-	githash = rdsapi.GitHash
+	// GitHash is the git sha of the built binary, it should be set at buildtime with ldflags
+	GitHash = rdsapi.GitHash
 )
 
 // App is where all routes and middleware for buffalo should be defined
