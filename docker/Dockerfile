@@ -2,6 +2,11 @@
 # https://docs.docker.com/engine/userguide/eng-image/multistage-build/
 FROM gobuffalo/buffalo:v0.14.3 as builder
 
+ARG version=0.0.0
+ARG prerelease
+ARG githash=""
+ARG buildstamp=""
+
 RUN mkdir /app
 WORKDIR /app
 ENV GO111MODULE=on 
@@ -10,7 +15,8 @@ COPY go.sum .
 RUN go mod download
 ADD . .
 RUN go version
-RUN buffalo build --static -o /bin/api
+RUN buffalo build --static -o /bin/api --ldflags "-X github.com/YaleSpinup/rds-api/rdsapi.Version=$version -X github.com/YaleSpinup/rds-api/rdsapi.VersionPrerelease=$prerelease -X github.com/YaleSpinup/rds-api/rdsapi.githash=$githash -X github.com/YaleSpinup/rds-api/rdsapi.buildstamp=$buildstamp"
+
 
 FROM alpine
 RUN apk add --no-cache bash

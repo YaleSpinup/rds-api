@@ -6,6 +6,7 @@ import (
 
 	"github.com/YaleSpinup/rds-api/pkg/common"
 	"github.com/YaleSpinup/rds-api/pkg/rds"
+	"github.com/YaleSpinup/rds-api/rdsapi"
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/envy"
 	paramlogger "github.com/gobuffalo/mw-paramlogger"
@@ -14,17 +15,31 @@ import (
 	"github.com/rs/cors"
 )
 
-// ENV is used to help switch settings based on where the
-// application is being run. Default is "development".
-var ENV = envy.Get("GO_ENV", "development")
+var (
+	app *buffalo.App
 
-// AppConfig holds the configuration information for the app
-var AppConfig common.Config
+	// ENV is used to help switch settings based on where the
+	// application is being run. Default is "development".
+	ENV = envy.Get("GO_ENV", "development")
 
-// RDS is a global map of RDS clients
-var RDS = make(map[string]rds.Client)
+	// AppConfig holds the configuration information for the app
+	AppConfig common.Config
 
-var app *buffalo.App
+	// RDS is a global map of RDS clients
+	RDS = make(map[string]rds.Client)
+
+	// Version is the main version number
+	Version = rdsapi.Version
+
+	// VersionPrerelease is a prerelease marker
+	VersionPrerelease = rdsapi.VersionPrerelease
+
+	// buildstamp is the timestamp the binary was built, it should be set at buildtime with ldflags
+	buildstamp = rdsapi.BuildStamp
+
+	// githash is the git sha of the built binary, it should be set at buildtime with ldflags
+	githash = rdsapi.GitHash
+)
 
 // App is where all routes and middleware for buffalo should be defined
 func App() *buffalo.App {
@@ -51,6 +66,7 @@ func App() *buffalo.App {
 		}
 
 		app.GET("/v1/rds/ping", PingPong)
+		app.GET("/v1/rds/version", VersionHandler)
 
 		rdsV1API := app.Group("/v1/rds/{account}")
 		rdsV1API.Use(sharedTokenAuth(AppConfig.Token))
