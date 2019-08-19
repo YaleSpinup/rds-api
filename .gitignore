@@ -8,7 +8,6 @@ node_modules/
 .sass-cache/
 *-packr.go
 public/assets/
-rds_api
 .vscode/
 .grifter/
 .env
