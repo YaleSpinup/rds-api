@@ -10,11 +10,7 @@ if [ -n "$SSMPATH" ]; then
     echo "ERROR: awscli not found!"
     exit 1
   fi
-  echo "Listing config dir"
-  ls -la config
-  echo "Getting config from SSM"
-  aws --region us-east-1 ssm get-parameter --name "${SSMPATH}" --with-decryption --output text --query "Parameter.Value" | base64 -d
-  echo "Writing config to file"
+  mkdir config
   aws --region us-east-1 ssm get-parameter --name "${SSMPATH}" --with-decryption --output text --query "Parameter.Value" | base64 -d > config/config.json
 else
   echo "ERROR: SSMPATH variable not set!"
