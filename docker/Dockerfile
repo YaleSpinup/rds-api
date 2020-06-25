@@ -19,11 +19,6 @@ RUN buffalo build --static -o /bin/api --ldflags "-X github.com/YaleSpinup/rds-a
 
 FROM alpine
 RUN apk add --no-cache bash ca-certificates
-RUN apk add --no-cache wget python gettext && \
-    wget -nv "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" && \
-    unzip awscli-bundle.zip && \
-    ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws && \
-    /usr/local/bin/aws --version
 
 WORKDIR /app/
 
