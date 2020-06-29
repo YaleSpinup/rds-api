@@ -1,6 +1,6 @@
 # This is a multi-stage Dockerfile and requires >= Docker 17.05
 # https://docs.docker.com/engine/userguide/eng-image/multistage-build/
-FROM gobuffalo/buffalo:v0.14.3 as builder
+FROM gobuffalo/buffalo:v0.16.10 as builder
 
 ARG version=0.0.0
 ARG prerelease
@@ -9,7 +9,6 @@ ARG buildstamp=""
 
 RUN mkdir /app
 WORKDIR /app
-ENV GO111MODULE=on 
 COPY go.mod .
 COPY go.sum .
 RUN go mod download
@@ -18,14 +17,10 @@ RUN go version
 RUN buffalo build --static -o /bin/api --ldflags "-X github.com/YaleSpinup/rds-api/rdsapi.Version=$version -X github.com/YaleSpinup/rds-api/rdsapi.VersionPrerelease=$prerelease -X github.com/YaleSpinup/rds-api/rdsapi.GitHash=$githash -X github.com/YaleSpinup/rds-api/rdsapi.BuildStamp=$buildstamp"
 
 
-FROM alpine
-RUN apk add --no-cache bash
-RUN apk add --no-cache ca-certificates
-RUN apk add --no-cache wget python gettext && \
-    wget -nv "https://s3.amazonaws.com/aws-cli/awscli-bundle.zip" && \
-    unzip awscli-bundle.zip && \
-    ./awscli-bundle/install -i /usr/local/aws -b /usr/local/bin/aws && \
-    /usr/local/bin/aws --version
+FROM python:3-alpine
+RUN apk add --no-cache bash ca-certificates && \
+    pip3 install awscli --upgrade && \
+    aws --version
 
 WORKDIR /app/
 

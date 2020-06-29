@@ -2,11 +2,10 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/golang:1.12
+      - image: circleci/golang:1.14
 
     environment:
       TEST_RESULTS: /tmp/test-results
-      GO111MODULE: "on"
 
     steps:
       - checkout
