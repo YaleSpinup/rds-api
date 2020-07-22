@@ -17,6 +17,10 @@ In each account you can optionally define certain defaults that will be used if 
 
 _Note that any default parameters need to refer to existing resources (groups), i.e. they need to be created separately outside of this API._
 
+### Authentication
+
+Authentication is accomplished via a pre-shared key (hashed string) in the `X-Auth-Token` header.
+
 ### Creating a database
 
 You can specify both database cluster and instance information in the POST to create just an instance or a cluster and a member instance. 
