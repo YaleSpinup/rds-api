@@ -10,6 +10,7 @@ import (
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/envy"
 	paramlogger "github.com/gobuffalo/mw-paramlogger"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/gobuffalo/x/sessions"
 	"github.com/rs/cors"
@@ -69,7 +70,7 @@ func App() *buffalo.App {
 		app.GET("/v1/rds/version", VersionHandler)
 
 		rdsV1API := app.Group("/v1/rds/{account}")
-		rdsV1API.Use(sharedTokenAuth(AppConfig.Token))
+		rdsV1API.Use(sharedTokenAuth([]byte(AppConfig.Token)))
 		rdsV1API.POST("/", DatabasesPost)
 		rdsV1API.GET("/", DatabasesList)
 		rdsV1API.GET("/{db}", DatabasesGet)
@@ -81,14 +82,20 @@ func App() *buffalo.App {
 }
 
 // sharedTokenAuth middleware validates the auth token
-func sharedTokenAuth(token string) buffalo.MiddlewareFunc {
+func sharedTokenAuth(token []byte) buffalo.MiddlewareFunc {
 	return func(next buffalo.Handler) buffalo.Handler {
 		return func(c buffalo.Context) error {
-			headers, ok := c.Request().Header["X-Auth-Token"]
-			if !ok || len(headers) == 0 || headers[0] != token {
-				log.Println("Missing or bad token header for request", c.Request().URL)
+			htoken, ok := c.Request().Header["X-Auth-Token"]
+
+			if !ok || len(htoken) == 0 {
+				log.Println("Missing token header for request", c.Request().URL)
 				return c.Error(403, errors.New("Forbidden"))
 			}
+			if err := bcrypt.CompareHashAndPassword([]byte(htoken[0]), token); err != nil {
+				log.Println("Bad token for request", c.Request().URL)
+				return c.Error(403, errors.New("Forbidden"))
+			}
+
 			return next(c)
 		}
 	}
