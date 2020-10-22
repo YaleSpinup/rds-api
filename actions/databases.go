@@ -30,6 +30,11 @@ type DatabaseModifyInput struct {
 	Tags     []*rds.Tag
 }
 
+// DatabaseStateInput is the input for changing the database state
+type DatabaseStateInput struct {
+	State string
+}
+
 // DatabasesList gets a list of databases for a given account
 // If the `all=true` parameter is passed it will return a list of clusters in addition to instances.
 func DatabasesList(c buffalo.Context) error {
@@ -335,6 +340,40 @@ func DatabasesPut(c buffalo.Context) error {
 	}
 
 	return c.Render(200, r.JSON(output))
+}
+
+// DatabasesPutState stops or starts a database in a given account
+func DatabasesPutState(c buffalo.Context) error {
+	input := DatabaseStateInput{}
+	if err := c.Bind(&input); err != nil {
+		log.Println(err)
+		return c.Error(400, err)
+	}
+
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
+	id := c.Param("db")
+	if id == "" {
+		return c.Error(400, errors.New("Bad request: missing database identifier"))
+	}
+
+	switch input.State {
+	case "start":
+		if err := rdsClient.StartDatabase(c, id); err != nil {
+			return c.Error(400, err)
+		}
+	case "stop":
+		if err := rdsClient.StopDatabase(c, id); err != nil {
+			return c.Error(400, err)
+		}
+	default:
+		return c.Error(400, errors.New("Invalid state.  Valid states are 'stop' or 'start'."))
+	}
+
+	return c.Render(200, r.JSON("OK"))
 }
 
 // DatabasesDelete deletes a database in a given account

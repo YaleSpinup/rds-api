@@ -21,7 +21,7 @@ func (m *mockRdsService) DescribeDBClusters(input *rds.DescribeDBClustersInput) 
 
 	return &rds.DescribeDBClustersOutput{
 		DBClusters: []*rds.DBCluster{
-			&rds.DBCluster{
+			{
 				DBClusterArn: aws.String("arn:aws:rds:us-east-1:123456789012:db:" + dbName),
 			},
 		},
@@ -37,7 +37,7 @@ func (m *mockRdsService) DescribeDBInstances(input *rds.DescribeDBInstancesInput
 
 	return &rds.DescribeDBInstancesOutput{
 		DBInstances: []*rds.DBInstance{
-			&rds.DBInstance{
+			{
 				DBInstanceArn: aws.String("arn:aws:rds:us-east-1:123456789012:db:" + dbName),
 			},
 		},
