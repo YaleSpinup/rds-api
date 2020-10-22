@@ -154,6 +154,15 @@ DELETE http://127.0.0.1:3000/v1/rds/{account}/mypostgres[?snapshot=true]
 
 The API will check if the database instance belongs to a cluster and will automatically delete the cluster if this is the last member.
 
+### Stopping and starting a database/cluster
+
+```
+PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora/power
+{
+   "State": "stop|start"
+}
+```
+
 ## Development
 
 - Install Buffalo framework (v0.13+): https://gobuffalo.io/en/docs/installation
