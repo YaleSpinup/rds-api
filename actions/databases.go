@@ -190,6 +190,7 @@ func DatabasesPost(c buffalo.Context) error {
 			}
 		}
 
+		input.Cluster.Tags = normalizeTags(input.Cluster.Tags)
 		if clusterOutput, err = rdsClient.Service.CreateDBClusterWithContext(c, input.Cluster); err != nil {
 			log.Println(err.Error())
 			if aerr, ok := err.(awserr.Error); ok {
@@ -222,6 +223,7 @@ func DatabasesPost(c buffalo.Context) error {
 		}
 	}
 
+	input.Instance.Tags = normalizeTags(input.Instance.Tags)
 	if instanceOutput, err = rdsClient.Service.CreateDBInstanceWithContext(c, input.Instance); err != nil {
 		log.Println(err.Error())
 		if input.Cluster != nil {
@@ -307,8 +309,6 @@ func DatabasesPut(c buffalo.Context) error {
 
 	if input.Tags != nil {
 		log.Println("Updating tags for "+c.Param("db"), input.Tags)
-		tags := &rds.AddTagsToResourceInput{}
-		tags.Tags = input.Tags
 
 		// determine ARN(s) for this RDS resource
 		arns, err := rdsClient.DetermineArn(c.Param("db"))
@@ -317,15 +317,15 @@ func DatabasesPut(c buffalo.Context) error {
 			return c.Error(400, err)
 		}
 
+		normalizedTags := normalizeTags(input.Tags)
+
 		// update tags for all RDS resources with matching ARNs
 		for _, arn := range arns {
-			tags.ResourceName = aws.String(arn)
-			if _, err = rdsClient.Service.AddTagsToResourceWithContext(c, tags); err != nil {
-				log.Println(err.Error())
-				if aerr, ok := err.(awserr.Error); ok {
-					return c.Error(400, aerr)
-				}
-				return err
+			if _, err = rdsClient.Service.AddTagsToResourceWithContext(c, &rds.AddTagsToResourceInput{
+				ResourceName: aws.String(arn),
+				Tags:         normalizedTags,
+			}); err != nil {
+				return c.Error(400, err)
 			}
 			log.Println("Updated tags for RDS resource", arn)
 		}
@@ -485,4 +485,23 @@ func DatabasesDelete(c buffalo.Context) error {
 	}
 
 	return c.Render(200, r.JSON(output))
+}
+
+// normalizeTags strips the org from the given tags and ensures it is set to the API org
+func normalizeTags(tags []*rds.Tag) []*rds.Tag {
+	normalizedTags := []*rds.Tag{}
+	for _, t := range tags {
+		if aws.StringValue(t.Key) == "spinup:org" || aws.StringValue(t.Key) == "yale:org" {
+			continue
+		}
+		normalizedTags = append(normalizedTags, t)
+	}
+
+	normalizedTags = append(normalizedTags,
+		&rds.Tag{
+			Key:   aws.String("spinup:org"),
+			Value: aws.String(AppConfig.Org),
+		})
+
+	return normalizedTags
 }
