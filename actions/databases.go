@@ -487,7 +487,7 @@ func DatabasesDelete(c buffalo.Context) error {
 	return c.Render(200, r.JSON(output))
 }
 
-// normalizTags strips the org from the given tags and ensures it is set to the API org
+// normalizeTags strips the org from the given tags and ensures it is set to the API org
 func normalizeTags(tags []*rds.Tag) []*rds.Tag {
 	normalizedTags := []*rds.Tag{}
 	for _, t := range tags {
