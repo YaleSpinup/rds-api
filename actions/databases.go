@@ -30,6 +30,11 @@ type DatabaseModifyInput struct {
 	Tags     []*rds.Tag
 }
 
+// DatabaseStateInput is the input for changing the database state
+type DatabaseStateInput struct {
+	State string
+}
+
 // DatabasesList gets a list of databases for a given account
 // If the `all=true` parameter is passed it will return a list of clusters in addition to instances.
 func DatabasesList(c buffalo.Context) error {
@@ -185,6 +190,7 @@ func DatabasesPost(c buffalo.Context) error {
 			}
 		}
 
+		input.Cluster.Tags = normalizeTags(input.Cluster.Tags)
 		if clusterOutput, err = rdsClient.Service.CreateDBClusterWithContext(c, input.Cluster); err != nil {
 			log.Println(err.Error())
 			if aerr, ok := err.(awserr.Error); ok {
@@ -217,6 +223,7 @@ func DatabasesPost(c buffalo.Context) error {
 		}
 	}
 
+	input.Instance.Tags = normalizeTags(input.Instance.Tags)
 	if instanceOutput, err = rdsClient.Service.CreateDBInstanceWithContext(c, input.Instance); err != nil {
 		log.Println(err.Error())
 		if input.Cluster != nil {
@@ -302,8 +309,6 @@ func DatabasesPut(c buffalo.Context) error {
 
 	if input.Tags != nil {
 		log.Println("Updating tags for "+c.Param("db"), input.Tags)
-		tags := &rds.AddTagsToResourceInput{}
-		tags.Tags = input.Tags
 
 		// determine ARN(s) for this RDS resource
 		arns, err := rdsClient.DetermineArn(c.Param("db"))
@@ -312,15 +317,15 @@ func DatabasesPut(c buffalo.Context) error {
 			return c.Error(400, err)
 		}
 
+		normalizedTags := normalizeTags(input.Tags)
+
 		// update tags for all RDS resources with matching ARNs
 		for _, arn := range arns {
-			tags.ResourceName = aws.String(arn)
-			if _, err = rdsClient.Service.AddTagsToResourceWithContext(c, tags); err != nil {
-				log.Println(err.Error())
-				if aerr, ok := err.(awserr.Error); ok {
-					return c.Error(400, aerr)
-				}
-				return err
+			if _, err = rdsClient.Service.AddTagsToResourceWithContext(c, &rds.AddTagsToResourceInput{
+				ResourceName: aws.String(arn),
+				Tags:         normalizedTags,
+			}); err != nil {
+				return c.Error(400, err)
 			}
 			log.Println("Updated tags for RDS resource", arn)
 		}
@@ -335,6 +340,40 @@ func DatabasesPut(c buffalo.Context) error {
 	}
 
 	return c.Render(200, r.JSON(output))
+}
+
+// DatabasesPutState stops or starts a database in a given account
+func DatabasesPutState(c buffalo.Context) error {
+	input := DatabaseStateInput{}
+	if err := c.Bind(&input); err != nil {
+		log.Println(err)
+		return c.Error(400, err)
+	}
+
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
+	id := c.Param("db")
+	if id == "" {
+		return c.Error(400, errors.New("Bad request: missing database identifier"))
+	}
+
+	switch input.State {
+	case "start":
+		if err := rdsClient.StartDatabase(c, id); err != nil {
+			return c.Error(400, err)
+		}
+	case "stop":
+		if err := rdsClient.StopDatabase(c, id); err != nil {
+			return c.Error(400, err)
+		}
+	default:
+		return c.Error(400, errors.New("Invalid state.  Valid states are 'stop' or 'start'."))
+	}
+
+	return c.Render(200, r.JSON("OK"))
 }
 
 // DatabasesDelete deletes a database in a given account
@@ -446,4 +485,23 @@ func DatabasesDelete(c buffalo.Context) error {
 	}
 
 	return c.Render(200, r.JSON(output))
+}
+
+// normalizeTags strips the org from the given tags and ensures it is set to the API org
+func normalizeTags(tags []*rds.Tag) []*rds.Tag {
+	normalizedTags := []*rds.Tag{}
+	for _, t := range tags {
+		if aws.StringValue(t.Key) == "spinup:org" || aws.StringValue(t.Key) == "yale:org" {
+			continue
+		}
+		normalizedTags = append(normalizedTags, t)
+	}
+
+	normalizedTags = append(normalizedTags,
+		&rds.Tag{
+			Key:   aws.String("spinup:org"),
+			Value: aws.String(AppConfig.Org),
+		})
+
+	return normalizedTags
 }

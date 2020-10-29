@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Accounts map[string]Account
 	Token    string
+	Org      string
 }
 
 // Account is the configuration for an individual account
