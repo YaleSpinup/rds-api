@@ -148,14 +148,12 @@ func DatabasesGet(c buffalo.Context) error {
 // DatabasesPost creates a database in a given account
 // It will create a database instance as specified by the `Instance` hash parameters.
 // If a `Cluster` hash is also given, it will first create an RDS cluster and the instance next.
+// If only `Cluster` is specified, it will create an RDS cluster (usually for Aurora serverless)
 func DatabasesPost(c buffalo.Context) error {
 	input := DatabaseCreateInput{}
 	if err := c.Bind(&input); err != nil {
 		log.Println(err)
 		return c.Error(400, err)
-	}
-	if input.Instance == nil {
-		return c.Error(400, errors.New("Bad request"))
 	}
 
 	rdsClient, ok := RDS[c.Param("account")]
@@ -201,50 +199,52 @@ func DatabasesPost(c buffalo.Context) error {
 		log.Println("Created RDS cluster", clusterOutput)
 	}
 
-	// create rds instance
-	// set default subnet group
-	if input.Instance.DBSubnetGroupName == nil {
-		input.Instance.DBSubnetGroupName = aws.String(rdsClient.DefaultSubnetGroup)
-	}
-	// set default parameter group
-	if input.Instance.DBParameterGroupName == nil {
-		pgFamily, pgErr := rdsClient.DetermineParameterGroupFamily(input.Instance.Engine, input.Instance.EngineVersion)
-		if pgErr != nil {
-			log.Println(pgErr.Error())
-			return c.Error(400, pgErr)
+	// create rds instance, if specified
+	if input.Instance != nil {
+		// set default subnet group
+		if input.Instance.DBSubnetGroupName == nil {
+			input.Instance.DBSubnetGroupName = aws.String(rdsClient.DefaultSubnetGroup)
 		}
-		log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
-		pg, ok := rdsClient.DefaultDBParameterGroupName[pgFamily]
-		if !ok {
-			log.Println("No matching DefaultDBParameterGroupName found in config, using AWS default PG")
-		} else {
-			log.Println("Using DefaultDBParameterGroupName:", pg)
-			input.Instance.DBParameterGroupName = aws.String(pg)
-		}
-	}
-
-	input.Instance.Tags = normalizeTags(input.Instance.Tags)
-	if instanceOutput, err = rdsClient.Service.CreateDBInstanceWithContext(c, input.Instance); err != nil {
-		log.Println(err.Error())
-		if input.Cluster != nil {
-			// if this instance was in a new cluster, delete the cluster
-			log.Println("Deleting cluster", *input.Cluster.DBClusterIdentifier)
-			clusterInput := &rds.DeleteDBClusterInput{
-				DBClusterIdentifier: input.Cluster.DBClusterIdentifier,
-				SkipFinalSnapshot:   aws.Bool(true),
+		// set default parameter group
+		if input.Instance.DBParameterGroupName == nil {
+			pgFamily, pgErr := rdsClient.DetermineParameterGroupFamily(input.Instance.Engine, input.Instance.EngineVersion)
+			if pgErr != nil {
+				log.Println(pgErr.Error())
+				return c.Error(400, pgErr)
 			}
-			if _, errc := rdsClient.Service.DeleteDBClusterWithContext(c, clusterInput); errc != nil {
-				log.Println("Failed to delete cluster", errc.Error())
+			log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
+			pg, ok := rdsClient.DefaultDBParameterGroupName[pgFamily]
+			if !ok {
+				log.Println("No matching DefaultDBParameterGroupName found in config, using AWS default PG")
 			} else {
-				log.Println("Successfully requested deletion of cluster", *input.Cluster.DBClusterIdentifier)
+				log.Println("Using DefaultDBParameterGroupName:", pg)
+				input.Instance.DBParameterGroupName = aws.String(pg)
 			}
 		}
-		if aerr, ok := err.(awserr.Error); ok {
-			return c.Error(400, aerr)
+
+		input.Instance.Tags = normalizeTags(input.Instance.Tags)
+		if instanceOutput, err = rdsClient.Service.CreateDBInstanceWithContext(c, input.Instance); err != nil {
+			log.Println(err.Error())
+			if input.Cluster != nil {
+				// if this instance was in a new cluster, delete the cluster
+				log.Println("Deleting cluster", *input.Cluster.DBClusterIdentifier)
+				clusterInput := &rds.DeleteDBClusterInput{
+					DBClusterIdentifier: input.Cluster.DBClusterIdentifier,
+					SkipFinalSnapshot:   aws.Bool(true),
+				}
+				if _, errc := rdsClient.Service.DeleteDBClusterWithContext(c, clusterInput); errc != nil {
+					log.Println("Failed to delete cluster", errc.Error())
+				} else {
+					log.Println("Successfully requested deletion of cluster", *input.Cluster.DBClusterIdentifier)
+				}
+			}
+			if aerr, ok := err.(awserr.Error); ok {
+				return c.Error(400, aerr)
+			}
+			return err
 		}
-		return err
+		log.Println("Created RDS instance", instanceOutput)
 	}
-	log.Println("Created RDS instance", instanceOutput)
 
 	output := struct {
 		*rds.CreateDBClusterOutput
@@ -378,7 +378,7 @@ func DatabasesPutState(c buffalo.Context) error {
 
 // DatabasesDelete deletes a database in a given account
 // It will delete the database instance with the given {db} name and will also delete the associated cluster
-// if the instance belongs to a cluster and is the last remaining member.
+//  if the instance belongs to a cluster and is the last remaining member.
 // If the snapshot=true parameter is given, it will create a final snapshot of the instance/cluster.
 func DatabasesDelete(c buffalo.Context) error {
 	// if snapshot param is given, a final snapshot will be created before deleting
@@ -396,6 +396,7 @@ func DatabasesDelete(c buffalo.Context) error {
 	var instanceOutput *rds.DeleteDBInstanceOutput
 	var err error
 	var clusterName *string
+	instanceNotFound := false
 
 	// first, let's determine if the given database instance belongs to a cluster
 	i, err := rdsClient.Service.DescribeDBInstancesWithContext(c, &rds.DescribeDBInstancesInput{
@@ -405,48 +406,54 @@ func DatabasesDelete(c buffalo.Context) error {
 		log.Println(err.Error())
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() == rds.ErrCodeDBInstanceNotFoundFault {
-				return c.Error(404, aerr)
+				log.Printf("No matching database instance found: %s", c.Param("db"))
+				instanceNotFound = true
+			} else {
+				return c.Error(400, aerr)
 			}
-			return c.Error(400, aerr)
 		}
-		return err
 	}
 
-	if len(i.DBInstances) > 1 {
-		return c.Error(400, errors.New("Unexpected number of DBInstances"))
-	}
-	if i.DBInstances[0].DBClusterIdentifier != nil {
-		clusterName = i.DBInstances[0].DBClusterIdentifier
-	}
+	if i != nil && !instanceNotFound {
+		if len(i.DBInstances) > 1 {
+			return c.Error(400, errors.New("Unexpected number of DBInstances"))
+		}
+		if len(i.DBInstances) < 1 {
+			return c.Error(400, errors.New("No DBInstances found"))
+		}
+		if i.DBInstances[0].DBClusterIdentifier != nil {
+			clusterName = i.DBInstances[0].DBClusterIdentifier
+		}
 
-	instanceInput := &rds.DeleteDBInstanceInput{
-		DBInstanceIdentifier: aws.String(c.Param("db")),
-		SkipFinalSnapshot:    aws.Bool(true),
-	}
+		instanceInput := &rds.DeleteDBInstanceInput{
+			DBInstanceIdentifier: aws.String(c.Param("db")),
+			SkipFinalSnapshot:    aws.Bool(true),
+		}
 
-	if snapshot && clusterName == nil {
-		log.Printf("Deleting database %s and creating final snapshot", c.Param("db"))
-		instanceInput.FinalDBSnapshotIdentifier = aws.String("final-" + c.Param("db"))
-		instanceInput.SkipFinalSnapshot = aws.Bool(false)
-	} else {
-		log.Printf("Deleting database %s without creating final snapshot", c.Param("db"))
-	}
+		if snapshot && clusterName == nil {
+			log.Printf("Deleting database %s and creating final snapshot", c.Param("db"))
+			instanceInput.FinalDBSnapshotIdentifier = aws.String("final-" + c.Param("db"))
+			instanceInput.SkipFinalSnapshot = aws.Bool(false)
+		} else {
+			log.Printf("Deleting database %s without creating final snapshot", c.Param("db"))
+		}
 
-	if instanceOutput, err = rdsClient.Service.DeleteDBInstanceWithContext(c, instanceInput); err != nil {
-		log.Println(err.Error())
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() == rds.ErrCodeDBInstanceNotFoundFault {
-				return c.Error(404, aerr)
+		if instanceOutput, err = rdsClient.Service.DeleteDBInstanceWithContext(c, instanceInput); err != nil {
+			log.Println(err.Error())
+			if aerr, ok := err.(awserr.Error); ok {
+				if aerr.Code() == rds.ErrCodeDBInstanceNotFoundFault {
+					return c.Error(404, aerr)
+				}
+				return c.Error(400, aerr)
 			}
-			return c.Error(400, aerr)
+			return err
 		}
-		return err
+		log.Println("Successfully requested deletion of database instance", c.Param("db"), instanceOutput)
 	}
-	log.Println("Successfully requested deletion of database instance", c.Param("db"), instanceOutput)
 
 	// check if this database instance was part of a cluster
 	// and delete the cluster (if this was the last member instance)
-	if clusterName != nil {
+	if clusterName != nil && !instanceNotFound {
 		clusterInput := &rds.DeleteDBClusterInput{
 			DBClusterIdentifier: clusterName,
 			SkipFinalSnapshot:   aws.Bool(true),
@@ -461,6 +468,37 @@ func DatabasesDelete(c buffalo.Context) error {
 		}
 
 		// the cluster deletion will fail if there are still member instances in the cluster
+		if clusterOutput, err = rdsClient.Service.DeleteDBClusterWithContext(c, clusterInput); err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				if aerr.Code() == rds.ErrCodeDBClusterNotFoundFault {
+					log.Println(rds.ErrCodeDBClusterNotFoundFault, aerr.Error())
+				} else {
+					log.Println(aerr.Error())
+				}
+			} else {
+				log.Println(err.Error())
+			}
+		} else {
+			log.Println("Successfully requested deletion of database cluster", *clusterName, clusterOutput)
+		}
+	}
+
+	// delete cluster (with no associated instances)
+	if instanceNotFound {
+		clusterName = aws.String(c.Param("db"))
+		clusterInput := &rds.DeleteDBClusterInput{
+			DBClusterIdentifier: clusterName,
+			SkipFinalSnapshot:   aws.Bool(true),
+		}
+
+		if snapshot {
+			log.Printf("Trying to delete database cluster %s with final snapshot", *clusterName)
+			clusterInput.FinalDBSnapshotIdentifier = aws.String("final-" + *clusterName)
+			clusterInput.SkipFinalSnapshot = aws.Bool(false)
+		} else {
+			log.Printf("Trying to delete database cluster %s", *clusterName)
+		}
+
 		if clusterOutput, err = rdsClient.Service.DeleteDBClusterWithContext(c, clusterInput); err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
 				if aerr.Code() == rds.ErrCodeDBClusterNotFoundFault {

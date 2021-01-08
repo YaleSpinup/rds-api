@@ -76,9 +76,36 @@ POST http://127.0.0.1:3000/v1/rds/{account}
 
 All cluster creation parameters are listed at https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBClusterInput
 
+To create an Aurora serverless cluster you need to pass the `EngineMode` parameter and can optionally specify custom `ScalingConfiguration`:
+
+```
+POST http://127.0.0.1:3000/v1/rds/{account}
+{
+   "Cluster":{
+      "AutoMinorVersionUpgrade":true,
+      "BackupRetentionPeriod":1,
+      "DBClusterIdentifier":"myserverless",
+      "Engine":"aurora-mysql",
+      "EngineMode":"serverless",
+      "MasterUserPassword":"MyPassword",
+      "MasterUsername":"MyUser",
+      "ScalingConfiguration": {
+         "AutoPause": true,
+         "MaxCapacity": 4,
+         "MinCapacity": 1,
+         "SecondsUntilAutoPause": 300
+      },
+      "StorageEncrypted":true,
+      "VpcSecurityGroupIds":[
+         "sg-12345678"
+      ]
+   }
+}
+```
+
 ### Getting details about a database
 
-To get details about a specific database instance:
+To get details about a specific database instance or cluster:
 
 ```
 GET http://127.0.0.1:3000/v1/rds/{account}/mypostgres
