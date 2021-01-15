@@ -4,7 +4,6 @@ go 1.14
 
 require (
 	github.com/Masterminds/semver/v3 v3.1.0 // indirect
-	github.com/YaleSpinup/apierror v0.1.0
 	github.com/aws/aws-sdk-go v1.33.9
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/gobuffalo/buffalo v0.16.13
@@ -27,7 +26,6 @@ require (
 	github.com/monoculum/formam v0.0.0-20200527175922-6f3cce7a46cf // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus/common v0.4.0
 	github.com/rogpeppe/go-internal v1.6.0 // indirect
 	github.com/rs/cors v1.7.0
 	github.com/shopspring/decimal v1.2.0 // indirect
@@ -38,7 +36,6 @@ require (
 	golang.org/x/net v0.0.0-20200707034311-ab3426394381 // indirect
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208 // indirect
 	golang.org/x/sys v0.0.0-20200720211630-cb9d2d5c5666 // indirect
-	google.golang.org/appengine v1.6.5
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200615113413-eeeca48fe776 // indirect
