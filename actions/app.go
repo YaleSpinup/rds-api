@@ -42,6 +42,10 @@ var (
 	GitHash = rdsapi.GitHash
 )
 
+type rdsOrchestrator struct {
+	client rds.Client
+}
+
 // App is where all routes and middleware for buffalo should be defined
 func App() *buffalo.App {
 	if app == nil {
