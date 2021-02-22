@@ -46,12 +46,9 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, input *DatabaseCreat
 
 		input.Cluster.Tags = normalizeTags(input.Cluster.Tags)
 		if clusterOutput, err = o.client.Service.CreateDBClusterWithContext(c, input.Cluster); err != nil {
-			log.Println(err.Error())
-			if aerr, ok := err.(awserr.Error); ok {
-				return nil, aerr
-			}
-			return nil, err
+			return nil, ErrCode("failed to create database cluster", err)
 		}
+
 		log.Println("Created RDS cluster", clusterOutput)
 	}
 
@@ -77,7 +74,6 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, input *DatabaseCreat
 
 		input.Instance.Tags = normalizeTags(input.Instance.Tags)
 		if instanceOutput, err = o.client.Service.CreateDBInstanceWithContext(c, input.Instance); err != nil {
-			log.Println(err.Error())
 			if input.Cluster != nil {
 				// if this instance was in a new cluster, delete the cluster
 				log.Println("Deleting cluster", *input.Cluster.DBClusterIdentifier)
@@ -91,11 +87,9 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, input *DatabaseCreat
 					log.Println("Successfully requested deletion of cluster", *input.Cluster.DBClusterIdentifier)
 				}
 			}
-			if aerr, ok := err.(awserr.Error); ok {
-				return nil, aerr
-			}
-			return nil, err
+			return nil, ErrCode("failed to create database instance", err)
 		}
+
 		log.Println("Created RDS instance", instanceOutput)
 	}
 
@@ -115,11 +109,7 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 	if input.Cluster != nil {
 		input.Cluster.DBClusterIdentifier = aws.String(id)
 		if clusterOutput, err = o.client.Service.ModifyDBClusterWithContext(c, input.Cluster); err != nil {
-			log.Println(err.Error())
-			if aerr, ok := err.(awserr.Error); ok {
-				return nil, aerr
-			}
-			return nil, err
+			return nil, ErrCode("failed to modify database cluster", err)
 		}
 		log.Println("Modified RDS cluster", clusterOutput)
 	}
@@ -127,11 +117,7 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 	if input.Instance != nil {
 		input.Instance.DBInstanceIdentifier = aws.String(id)
 		if instanceOutput, err = o.client.Service.ModifyDBInstanceWithContext(c, input.Instance); err != nil {
-			log.Println(err.Error())
-			if aerr, ok := err.(awserr.Error); ok {
-				return nil, aerr
-			}
-			return nil, err
+			return nil, ErrCode("failed to modify database instance", err)
 		}
 		log.Println("Modified RDS instance", instanceOutput)
 	}
@@ -154,7 +140,7 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 				ResourceName: aws.String(arn),
 				Tags:         normalizedTags,
 			}); err != nil {
-				return nil, err
+				return nil, ErrCode("failed to add tags to database", err)
 			}
 			log.Println("Updated tags for RDS resource", arn)
 		}
@@ -181,13 +167,12 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		DBInstanceIdentifier: aws.String(id),
 	})
 	if err != nil {
-		log.Println(err.Error())
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() == rds.ErrCodeDBInstanceNotFoundFault {
 				log.Printf("No matching database instance found: %s", id)
 				instanceNotFound = true
 			} else {
-				return nil, aerr
+				return nil, ErrCode("failed to describe database instance", err)
 			}
 		}
 	}
@@ -218,12 +203,9 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		}
 
 		if instanceOutput, err = o.client.Service.DeleteDBInstanceWithContext(c, instanceInput); err != nil {
-			log.Println(err.Error())
-			if aerr, ok := err.(awserr.Error); ok {
-				return nil, aerr
-			}
-			return nil, err
+			return nil, ErrCode("failed to delete database instance", err)
 		}
+
 		log.Println("Successfully requested deletion of database instance", id, instanceOutput)
 	}
 
@@ -245,18 +227,10 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 
 		// the cluster deletion will fail if there are still member instances in the cluster
 		if clusterOutput, err = o.client.Service.DeleteDBClusterWithContext(c, clusterInput); err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				if aerr.Code() == rds.ErrCodeDBClusterNotFoundFault {
-					log.Println(rds.ErrCodeDBClusterNotFoundFault, aerr.Error())
-				} else {
-					log.Println(aerr.Error())
-				}
-			} else {
-				log.Println(err.Error())
-			}
-		} else {
-			log.Println("Successfully requested deletion of database cluster", *clusterName, clusterOutput)
+			return nil, ErrCode("failed to delete database cluster", err)
 		}
+
+		log.Println("Successfully requested deletion of database cluster", *clusterName, clusterOutput)
 	}
 
 	// delete cluster (with no associated instances)
@@ -276,11 +250,7 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		}
 
 		if clusterOutput, err = o.client.Service.DeleteDBClusterWithContext(c, clusterInput); err != nil {
-			log.Println(err.Error())
-			if aerr, ok := err.(awserr.Error); ok {
-				return nil, aerr
-			}
-			return nil, err
+			return nil, ErrCode("failed to delete database cluster", err)
 		}
 
 		log.Println("Successfully requested deletion of database cluster", *clusterName, clusterOutput)
