@@ -87,11 +87,7 @@ func DatabasesList(c buffalo.Context) error {
 
 	instancesOutput, err = rdsClient.Service.DescribeDBInstancesWithContext(c, &rds.DescribeDBInstancesInput{})
 	if err != nil {
-		log.Println(err.Error())
-		if aerr, ok := err.(awserr.Error); ok {
-			return c.Error(400, aerr)
-		}
-		return err
+		return handleError(c, err)
 	}
 
 	output := struct {
@@ -167,6 +163,7 @@ func DatabasesGet(c buffalo.Context) error {
 		clustersOutput,
 		instancesOutput,
 	}
+
 	return c.Render(200, r.JSON(output))
 }
 
@@ -193,7 +190,7 @@ func DatabasesPost(c buffalo.Context) error {
 
 	resp, err := orch.databaseCreate(c, &input)
 	if err != nil {
-		return c.Error(400, errors.Wrap(err, "failed to create database"))
+		return handleError(c, err)
 	}
 
 	return c.Render(200, r.JSON(resp))
@@ -226,7 +223,7 @@ func DatabasesPut(c buffalo.Context) error {
 
 	resp, err := orch.databaseModify(c, c.Param("db"), &input)
 	if err != nil {
-		return c.Error(400, errors.Wrap(err, "failed to modify database"))
+		return handleError(c, err)
 	}
 
 	return c.Render(200, r.JSON(resp))
@@ -284,7 +281,7 @@ func DatabasesDelete(c buffalo.Context) error {
 
 	resp, err := orch.databaseDelete(c, c.Param("db"), snapshot)
 	if err != nil {
-		return c.Error(400, errors.Wrap(err, "failed to delete database"))
+		return handleError(c, err)
 	}
 
 	return c.Render(200, r.JSON(resp))
