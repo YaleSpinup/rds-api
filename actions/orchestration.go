@@ -108,17 +108,60 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 
 	if input.Cluster != nil {
 		input.Cluster.DBClusterIdentifier = aws.String(id)
+
+		// set default cluster parameter group when upgrading engine version
+		if input.Cluster.DBClusterParameterGroupName == nil && input.Cluster.EngineVersion != nil {
+			// get information about the existing cluster to determine the engine type
+			describeClusterOutput, err := o.client.Service.DescribeDBClustersWithContext(c, &rds.DescribeDBClustersInput{})
+			if err == nil && describeClusterOutput != nil {
+				pgFamily, pgErr := o.client.DetermineParameterGroupFamily(describeClusterOutput.DBClusters[0].Engine, input.Cluster.EngineVersion)
+				if pgErr != nil {
+					log.Println(pgErr.Error())
+					return nil, pgErr
+				}
+				log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
+				cPg, ok := o.client.DefaultDBClusterParameterGroupName[pgFamily]
+				if !ok {
+					log.Println("No matching DefaultDBClusterParameterGroupName found in config, using AWS default PG")
+				} else {
+					log.Println("Using DefaultDBClusterParameterGroupName:", cPg)
+					input.Cluster.DBClusterParameterGroupName = aws.String(cPg)
+				}
+			}
+		}
+
 		if clusterOutput, err = o.client.Service.ModifyDBClusterWithContext(c, input.Cluster); err != nil {
 			return nil, ErrCode("failed to modify database cluster", err)
 		}
+
 		log.Println("Modified RDS cluster", clusterOutput)
 	}
 
 	if input.Instance != nil {
 		input.Instance.DBInstanceIdentifier = aws.String(id)
+
+		// set default instance parameter group when upgrading engine version
+		if input.Instance.DBParameterGroupName == nil && input.Instance.EngineVersion != nil {
+			// get information about the existing instance to determine the engine type
+			describeInstanceOutput, err := o.client.Service.DescribeDBInstancesWithContext(c, &rds.DescribeDBInstancesInput{})
+			if err == nil && describeInstanceOutput != nil {
+				pgFamily, pgErr := o.client.DetermineParameterGroupFamily(describeInstanceOutput.DBInstances[0].Engine, input.Instance.EngineVersion)
+				if pgErr != nil {
+					log.Println(pgErr.Error())
+					return nil, pgErr
+				}
+				log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
+				if pg, ok := o.client.DefaultDBParameterGroupName[pgFamily]; ok {
+					log.Println("Using DefaultDBParameterGroupName:", pg)
+					input.Instance.DBParameterGroupName = aws.String(pg)
+				}
+			}
+		}
+
 		if instanceOutput, err = o.client.Service.ModifyDBInstanceWithContext(c, input.Instance); err != nil {
 			return nil, ErrCode("failed to modify database instance", err)
 		}
+
 		log.Println("Modified RDS instance", instanceOutput)
 	}
 
