@@ -112,7 +112,9 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 		// set default cluster parameter group when upgrading engine version
 		if input.Cluster.DBClusterParameterGroupName == nil && input.Cluster.EngineVersion != nil {
 			// get information about the existing cluster to determine the engine type
-			describeClusterOutput, err := o.client.Service.DescribeDBClustersWithContext(c, &rds.DescribeDBClustersInput{})
+			describeClusterOutput, err := o.client.Service.DescribeDBClustersWithContext(c, &rds.DescribeDBClustersInput{
+				DBClusterIdentifier: aws.String(id),
+			})
 			if err == nil && describeClusterOutput != nil {
 				pgFamily, pgErr := o.client.DetermineParameterGroupFamily(describeClusterOutput.DBClusters[0].Engine, input.Cluster.EngineVersion)
 				if pgErr != nil {
@@ -143,7 +145,9 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 		// set default instance parameter group when upgrading engine version
 		if input.Instance.DBParameterGroupName == nil && input.Instance.EngineVersion != nil {
 			// get information about the existing instance to determine the engine type
-			describeInstanceOutput, err := o.client.Service.DescribeDBInstancesWithContext(c, &rds.DescribeDBInstancesInput{})
+			describeInstanceOutput, err := o.client.Service.DescribeDBInstancesWithContext(c, &rds.DescribeDBInstancesInput{
+				DBInstanceIdentifier: aws.String(id),
+			})
 			if err == nil && describeInstanceOutput != nil {
 				pgFamily, pgErr := o.client.DetermineParameterGroupFamily(describeInstanceOutput.DBInstances[0].Engine, input.Instance.EngineVersion)
 				if pgErr != nil {
