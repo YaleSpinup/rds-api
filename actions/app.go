@@ -1,6 +1,8 @@
 package actions
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -59,6 +61,12 @@ func App() *buffalo.App {
 			},
 			SessionName: "_rdsapi_session",
 		})
+
+		app.ErrorHandlers = buffalo.ErrorHandlers{
+			0:                              defaultErrorHandler,
+			http.StatusNotFound:            defaultErrorHandler,
+			http.StatusInternalServerError: defaultErrorHandler,
+		}
 
 		if ENV == "development" {
 			app.Use(paramlogger.ParameterLogger)
@@ -129,4 +137,49 @@ func handleError(c buffalo.Context, err error) error {
 	} else {
 		return c.Error(http.StatusInternalServerError, err)
 	}
+}
+
+// defaultErrorHandler takes an error and returns a JSON representation for
+// easier consumption.
+func defaultErrorHandler(status int, origErr error, c buffalo.Context) error {
+	c.LogField("status", status)
+	c.Logger().Error(origErr)
+
+	c.Response().WriteHeader(status)
+	c.Response().Header().Set("content-type", "application/json")
+
+	resp := struct {
+		Error   string `json:"error"`
+		Message string `json:"message, omitempty"`
+	}{
+		Error: origErr.Error(),
+	}
+
+	// if the error is an apierror (return from handleError())
+	// else if it's a buffalo error (return from c.Error()) with an
+	// an apierror as the cause.  this should probably be more consistent
+	if aerr, ok := origErr.(apierror.Error); ok {
+		c.Logger().Debugf("orig error is an apierr: %+v", origErr)
+		resp.Error = aerr.Error()
+		resp.Message = aerr.Message
+	} else if berr, ok := origErr.(buffalo.HTTPError); ok {
+		c.Logger().Debugf("error is a buffalo error: %+v", berr)
+
+		if aerr, ok := berr.Cause.(apierror.Error); ok {
+			c.Logger().Debugf("error cause is an apierr: %+v", berr)
+			resp.Error = aerr.Error()
+			resp.Message = aerr.Message
+		}
+	}
+
+	j, err := json.Marshal(resp)
+	if err != nil {
+		msg := fmt.Sprintf("failed to marshal error into JSON: %s", err.Error())
+		c.Response().Write([]byte(msg))
+		return nil
+	}
+
+	c.Response().Write(j)
+
+	return nil
 }
