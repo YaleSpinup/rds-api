@@ -10,6 +10,7 @@ require (
 	github.com/gobuffalo/buffalo v0.16.13
 	github.com/gobuffalo/envy v1.9.0
 	github.com/gobuffalo/fizz v1.11.0 // indirect
+	github.com/gobuffalo/flect v0.2.1 // indirect
 	github.com/gobuffalo/mw-paramlogger v1.0.0
 	github.com/gobuffalo/nulls v0.4.0 // indirect
 	github.com/gobuffalo/packr/v2 v2.8.0
@@ -22,6 +23,7 @@ require (
 	github.com/karrick/godirwalk v1.15.6 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/lib/pq v1.7.1 // indirect
+	github.com/markbates/grift v1.5.0 // indirect
 	github.com/mattn/go-colorable v0.1.7 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.3 // indirect
 	github.com/monoculum/formam v0.0.0-20200527175922-6f3cce7a46cf // indirect
