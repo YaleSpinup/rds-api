@@ -186,7 +186,7 @@ The API will check if the database instance belongs to a cluster and will automa
 ```
 PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora/power
 {
-   "State": "stop|start"
+   "state": "stop|start"
 }
 ```
 
