@@ -2,6 +2,7 @@ package actions
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -26,6 +27,9 @@ var (
 	// ENV is used to help switch settings based on where the
 	// application is being run. Default is "development".
 	ENV = envy.Get("GO_ENV", "development")
+
+	// ConfigFile is the name of the json config file
+	ConfigFile = "config/config.json"
 
 	// AppConfig holds the configuration information for the app
 	AppConfig common.Config
@@ -75,10 +79,15 @@ func App() *buffalo.App {
 			app.Use(paramlogger.ParameterLogger)
 		}
 
+		// override values for test runs
+		if flag.Lookup("test.v") != nil {
+			ConfigFile = "../config/config.example.json"
+		}
+
 		// load json config
-		AppConfig, err := common.LoadConfig("config/config.json")
+		AppConfig, err := common.LoadConfig(ConfigFile)
 		if err != nil {
-			log.Fatalf("Failed to load config: %+v", err)
+			log.Fatalf("Failed to load config %s: %+v", ConfigFile, err)
 		}
 
 		Org = AppConfig.Org
