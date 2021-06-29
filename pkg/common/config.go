@@ -33,14 +33,20 @@ func LoadConfig(filename string) (Config, error) {
 
 	configFile, err := os.Open(filename)
 	if err != nil {
-		log.Println("Unable to open config file", err)
 		return Config{}, err
 	}
 
 	config, err := readConfig(bufio.NewReader(configFile))
 	if err != nil {
-		log.Printf("Unable to read configuration from %s. %+v", filename, err)
 		return Config{}, err
+	}
+
+	if config.Org == "" {
+		return Config{}, errors.New("'org' cannot be empty in the config")
+	}
+
+	if config.Token == "" {
+		return Config{}, errors.New("'token' cannot be empty in the config")
 	}
 
 	return config, nil

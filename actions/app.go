@@ -30,6 +30,9 @@ var (
 	// AppConfig holds the configuration information for the app
 	AppConfig common.Config
 
+	// The org for this instance of the app
+	Org string
+
 	// RDS is a global map of RDS clients
 	RDS = make(map[string]rds.Client)
 
@@ -73,7 +76,12 @@ func App() *buffalo.App {
 		}
 
 		// load json config
-		AppConfig, _ := common.LoadConfig("config/config.json")
+		AppConfig, err := common.LoadConfig("config/config.json")
+		if err != nil {
+			log.Fatalf("Failed to load config: %+v", err)
+		}
+
+		Org = AppConfig.Org
 
 		// create a shared RDS session for each account
 		for account, c := range AppConfig.Accounts {
@@ -91,6 +99,8 @@ func App() *buffalo.App {
 		rdsV1API.PUT("/{db}", DatabasesPut)
 		rdsV1API.PUT("/{db}/power", DatabasesPutState)
 		rdsV1API.DELETE("/{db}", DatabasesDelete)
+
+		log.Printf("Started rds-api in org %s", Org)
 	}
 
 	return app
@@ -150,7 +160,7 @@ func defaultErrorHandler(status int, origErr error, c buffalo.Context) error {
 
 	resp := struct {
 		Error   string `json:"error"`
-		Message string `json:"message, omitempty"`
+		Message string `json:"message,omitempty"`
 	}{
 		Error: origErr.Error(),
 	}
