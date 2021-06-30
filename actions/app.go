@@ -2,6 +2,7 @@ package actions
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -27,8 +28,14 @@ var (
 	// application is being run. Default is "development".
 	ENV = envy.Get("GO_ENV", "development")
 
+	// ConfigFile is the name of the json config file
+	ConfigFile = "config/config.json"
+
 	// AppConfig holds the configuration information for the app
 	AppConfig common.Config
+
+	// The org for this instance of the app
+	Org string
 
 	// RDS is a global map of RDS clients
 	RDS = make(map[string]rds.Client)
@@ -72,8 +79,18 @@ func App() *buffalo.App {
 			app.Use(paramlogger.ParameterLogger)
 		}
 
+		// override values for test runs
+		if flag.Lookup("test.v") != nil {
+			ConfigFile = "../config/config.example.json"
+		}
+
 		// load json config
-		AppConfig, _ := common.LoadConfig("config/config.json")
+		AppConfig, err := common.LoadConfig(ConfigFile)
+		if err != nil {
+			log.Fatalf("Failed to load config %s: %+v", ConfigFile, err)
+		}
+
+		Org = AppConfig.Org
 
 		// create a shared RDS session for each account
 		for account, c := range AppConfig.Accounts {
@@ -91,6 +108,8 @@ func App() *buffalo.App {
 		rdsV1API.PUT("/{db}", DatabasesPut)
 		rdsV1API.PUT("/{db}/power", DatabasesPutState)
 		rdsV1API.DELETE("/{db}", DatabasesDelete)
+
+		log.Printf("Started rds-api in org %s", Org)
 	}
 
 	return app
@@ -150,7 +169,7 @@ func defaultErrorHandler(status int, origErr error, c buffalo.Context) error {
 
 	resp := struct {
 		Error   string `json:"error"`
-		Message string `json:"message, omitempty"`
+		Message string `json:"message,omitempty"`
 	}{
 		Error: origErr.Error(),
 	}

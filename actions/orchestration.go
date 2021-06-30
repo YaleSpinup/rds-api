@@ -227,10 +227,10 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 	// if a db instance exists, delete it
 	if describeInstanceOutput != nil && !instanceNotFound {
 		if len(describeInstanceOutput.DBInstances) > 1 {
-			return nil, errors.New("Unexpected number of DBInstances")
+			return nil, errors.New("unexpected number of DBInstances")
 		}
 		if len(describeInstanceOutput.DBInstances) < 1 {
-			return nil, errors.New("No DBInstances found")
+			return nil, errors.New("no DBInstances found")
 		}
 		if describeInstanceOutput.DBInstances[0].DBClusterIdentifier != nil {
 			clusterName = describeInstanceOutput.DBInstances[0].DBClusterIdentifier
@@ -319,7 +319,7 @@ func normalizeTags(tags []*rds.Tag) []*rds.Tag {
 	normalizedTags = append(normalizedTags,
 		&rds.Tag{
 			Key:   aws.String("spinup:org"),
-			Value: aws.String(AppConfig.Org),
+			Value: aws.String(Org),
 		})
 
 	return normalizedTags
