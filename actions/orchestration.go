@@ -14,22 +14,27 @@ import (
 // It will create a database instance as specified by the `Instance` hash parameters.
 // If a `Cluster` hash is also given, it will first create an RDS cluster and the instance next.
 // If only `Cluster` is specified, it will create an RDS cluster (usually for Aurora serverless)
-func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, input *DatabaseCreateInput) (*DatabaseCreateOutput, error) {
-	log.Printf("creating database with input %+v", input)
+func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateRequest) (*DatabaseResponse, error) {
+	log.Printf("creating database from request %+v", req)
 
 	var clusterOutput *rds.CreateDBClusterOutput
 	var instanceOutput *rds.CreateDBInstanceOutput
+	var cluster *rds.DBCluster
+	var instance *rds.DBInstance
 	var err error
 
 	// create rds cluster first, if specified
-	if input.Cluster != nil {
+	if req.Cluster != nil {
+		req.Cluster.Tags = normalizeTags(req.Cluster.Tags)
+
 		// set default subnet group
-		if input.Cluster.DBSubnetGroupName == nil {
-			input.Cluster.DBSubnetGroupName = aws.String(o.client.DefaultSubnetGroup)
+		if req.Cluster.DBSubnetGroupName == nil {
+			req.Cluster.DBSubnetGroupName = aws.String(o.client.DefaultSubnetGroup)
 		}
+
 		// set default cluster parameter group
-		if input.Cluster.DBClusterParameterGroupName == nil {
-			pgFamily, pgErr := o.client.DetermineParameterGroupFamily(input.Cluster.Engine, input.Cluster.EngineVersion)
+		if req.Cluster.DBClusterParameterGroupName == nil {
+			pgFamily, pgErr := o.client.DetermineParameterGroupFamily(req.Cluster.Engine, req.Cluster.EngineVersion)
 			if pgErr != nil {
 				log.Println(pgErr.Error())
 				return nil, pgErr
@@ -40,27 +45,55 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, input *DatabaseCreat
 				log.Println("No matching DefaultDBClusterParameterGroupName found in config, using AWS default PG")
 			} else {
 				log.Println("Using DefaultDBClusterParameterGroupName:", cPg)
-				input.Cluster.DBClusterParameterGroupName = aws.String(cPg)
+				req.Cluster.DBClusterParameterGroupName = aws.String(cPg)
 			}
 		}
 
-		input.Cluster.Tags = normalizeTags(input.Cluster.Tags)
-		if clusterOutput, err = o.client.Service.CreateDBClusterWithContext(c, input.Cluster); err != nil {
+		input := &rds.CreateDBClusterInput{
+			BackupRetentionPeriod:       req.Cluster.BackupRetentionPeriod,
+			CopyTagsToSnapshot:          req.Cluster.CopyTagsToSnapshot,
+			DBClusterIdentifier:         req.Cluster.DBClusterIdentifier,
+			DBClusterParameterGroupName: req.Cluster.DBClusterParameterGroupName,
+			DBSubnetGroupName:           req.Cluster.DBSubnetGroupName,
+			EnableCloudwatchLogsExports: req.Cluster.EnableCloudwatchLogsExports,
+			Engine:                      req.Cluster.Engine,
+			EngineMode:                  req.Cluster.EngineMode,
+			EngineVersion:               req.Cluster.EngineVersion,
+			MasterUserPassword:          req.Cluster.MasterUserPassword,
+			MasterUsername:              req.Cluster.MasterUsername,
+			Port:                        req.Cluster.Port,
+			ScalingConfiguration: &rds.ScalingConfiguration{
+				AutoPause:             req.Cluster.ScalingConfiguration.AutoPause,
+				MaxCapacity:           req.Cluster.ScalingConfiguration.MaxCapacity,
+				MinCapacity:           req.Cluster.ScalingConfiguration.MinCapacity,
+				SecondsUntilAutoPause: req.Cluster.ScalingConfiguration.SecondsUntilAutoPause,
+				TimeoutAction:         req.Cluster.ScalingConfiguration.TimeoutAction,
+			},
+			StorageEncrypted:    req.Cluster.StorageEncrypted,
+			Tags:                toRDSTags(req.Cluster.Tags),
+			VpcSecurityGroupIds: req.Cluster.VpcSecurityGroupIds,
+		}
+
+		if clusterOutput, err = o.client.Service.CreateDBClusterWithContext(c, input); err != nil {
 			return nil, ErrCode("failed to create database cluster", err)
 		}
 
 		log.Println("Created RDS cluster", clusterOutput)
+		cluster = clusterOutput.DBCluster
 	}
 
 	// create rds instance, if specified
-	if input.Instance != nil {
+	if req.Instance != nil {
+		req.Instance.Tags = normalizeTags(req.Instance.Tags)
+
 		// set default subnet group
-		if input.Instance.DBSubnetGroupName == nil {
-			input.Instance.DBSubnetGroupName = aws.String(o.client.DefaultSubnetGroup)
+		if req.Instance.DBSubnetGroupName == nil {
+			req.Instance.DBSubnetGroupName = aws.String(o.client.DefaultSubnetGroup)
 		}
+
 		// set default parameter group
-		if input.Instance.DBParameterGroupName == nil {
-			pgFamily, pgErr := o.client.DetermineParameterGroupFamily(input.Instance.Engine, input.Instance.EngineVersion)
+		if req.Instance.DBParameterGroupName == nil {
+			pgFamily, pgErr := o.client.DetermineParameterGroupFamily(req.Instance.Engine, req.Instance.EngineVersion)
 			if pgErr != nil {
 				log.Println(pgErr.Error())
 				return nil, pgErr
@@ -68,42 +101,67 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, input *DatabaseCreat
 			log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
 			if pg, ok := o.client.DefaultDBParameterGroupName[pgFamily]; ok {
 				log.Println("Using DefaultDBParameterGroupName:", pg)
-				input.Instance.DBParameterGroupName = aws.String(pg)
+				req.Instance.DBParameterGroupName = aws.String(pg)
 			}
 		}
 
-		input.Instance.Tags = normalizeTags(input.Instance.Tags)
-		if instanceOutput, err = o.client.Service.CreateDBInstanceWithContext(c, input.Instance); err != nil {
-			if input.Cluster != nil {
+		input := &rds.CreateDBInstanceInput{
+			AllocatedStorage:            req.Instance.AllocatedStorage,
+			AutoMinorVersionUpgrade:     req.Instance.AutoMinorVersionUpgrade,
+			BackupRetentionPeriod:       req.Instance.BackupRetentionPeriod,
+			CopyTagsToSnapshot:          req.Instance.CopyTagsToSnapshot,
+			DBClusterIdentifier:         req.Instance.DBClusterIdentifier,
+			DBInstanceClass:             req.Instance.DBInstanceClass,
+			DBInstanceIdentifier:        req.Instance.DBInstanceIdentifier,
+			DBParameterGroupName:        req.Instance.DBParameterGroupName,
+			DBSubnetGroupName:           req.Instance.DBSubnetGroupName,
+			EnableCloudwatchLogsExports: req.Instance.EnableCloudwatchLogsExports,
+			Engine:                      req.Instance.Engine,
+			EngineVersion:               req.Instance.EngineVersion,
+			MasterUserPassword:          req.Instance.MasterUserPassword,
+			MasterUsername:              req.Instance.MasterUsername,
+			MultiAZ:                     req.Instance.MultiAZ,
+			Port:                        req.Instance.Port,
+			PubliclyAccessible:          req.Instance.PubliclyAccessible,
+			StorageEncrypted:            req.Instance.StorageEncrypted,
+			Tags:                        toRDSTags(req.Instance.Tags),
+			VpcSecurityGroupIds:         req.Instance.VpcSecurityGroupIds,
+		}
+
+		if instanceOutput, err = o.client.Service.CreateDBInstanceWithContext(c, input); err != nil {
+			if req.Cluster != nil {
 				// if this instance was in a new cluster, delete the cluster
-				log.Println("Deleting cluster", *input.Cluster.DBClusterIdentifier)
+				log.Println("Deleting cluster", *req.Cluster.DBClusterIdentifier)
 				clusterInput := &rds.DeleteDBClusterInput{
-					DBClusterIdentifier: input.Cluster.DBClusterIdentifier,
+					DBClusterIdentifier: req.Cluster.DBClusterIdentifier,
 					SkipFinalSnapshot:   aws.Bool(true),
 				}
 				if _, errc := o.client.Service.DeleteDBClusterWithContext(c, clusterInput); errc != nil {
 					log.Println("Failed to delete cluster", errc.Error())
 				} else {
-					log.Println("Successfully requested deletion of cluster", *input.Cluster.DBClusterIdentifier)
+					log.Println("Successfully requested deletion of cluster", *req.Cluster.DBClusterIdentifier)
 				}
 			}
 			return nil, ErrCode("failed to create database instance", err)
 		}
 
 		log.Println("Created RDS instance", instanceOutput)
+		instance = instanceOutput.DBInstance
 	}
 
-	return &DatabaseCreateOutput{clusterOutput, instanceOutput}, nil
+	return &DatabaseResponse{cluster, instance}, nil
 }
 
 // databaseModify modifies database parameters and tags
 // Either Cluster or Instance input parameters can be specified for a request
 // Tags list can be given with any key/value tags to add/update
-func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *DatabaseModifyInput) (*DatabaseModifyOutput, error) {
+func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *DatabaseModifyInput) (*DatabaseResponse, error) {
 	log.Printf("modifying database %s with input %+v", id, input)
 
 	var clusterOutput *rds.ModifyDBClusterOutput
 	var instanceOutput *rds.ModifyDBInstanceOutput
+	var cluster *rds.DBCluster
+	var instance *rds.DBInstance
 	var err error
 
 	if input.Cluster != nil {
@@ -137,6 +195,7 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 		}
 
 		log.Println("Modified RDS cluster", clusterOutput)
+		cluster = clusterOutput.DBCluster
 	}
 
 	if input.Instance != nil {
@@ -167,6 +226,7 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 		}
 
 		log.Println("Modified RDS instance", instanceOutput)
+		instance = instanceOutput.DBInstance
 	}
 
 	if input.Tags != nil {
@@ -179,13 +239,13 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 			return nil, err
 		}
 
-		normalizedTags := normalizeTags(input.Tags)
+		normalizedTags := normalizeTags(fromRDSTags(input.Tags))
 
 		// update tags for all RDS resources with matching ARNs
 		for _, arn := range arns {
 			if _, err = o.client.Service.AddTagsToResourceWithContext(c, &rds.AddTagsToResourceInput{
 				ResourceName: aws.String(arn),
-				Tags:         normalizedTags,
+				Tags:         toRDSTags(normalizedTags),
 			}); err != nil {
 				return nil, ErrCode("failed to add tags to database", err)
 			}
@@ -193,18 +253,20 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 		}
 	}
 
-	return &DatabaseModifyOutput{clusterOutput, instanceOutput}, nil
+	return &DatabaseResponse{cluster, instance}, nil
 }
 
 // databaseDelete deletes a database
 // It will delete the database instance with the given {db} name and will also delete the associated cluster
 //  if the instance belongs to a cluster and is the last remaining member.
 // If snapshot is true, it will create a final snapshot of the instance/cluster.
-func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot bool) (*DatabaseDeleteOutput, error) {
+func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot bool) (*DatabaseResponse, error) {
 	log.Printf("deleting database %s (snapshot: %t)", id, snapshot)
 
 	var clusterOutput *rds.DeleteDBClusterOutput
 	var instanceOutput *rds.DeleteDBInstanceOutput
+	var cluster *rds.DBCluster
+	var instance *rds.DBInstance
 	var err error
 	var clusterName *string
 	var instanceNotFound bool
@@ -254,6 +316,7 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		}
 
 		log.Println("Successfully requested deletion of database instance", id, instanceOutput)
+		instance = instanceOutput.DBInstance
 	}
 
 	// check if this db instance was part of a cluster
@@ -278,6 +341,7 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		}
 
 		log.Println("Successfully requested deletion of database cluster", *clusterName, clusterOutput)
+		cluster = clusterOutput.DBCluster
 	}
 
 	// delete cluster (with no associated instances)
@@ -301,26 +365,8 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		}
 
 		log.Println("Successfully requested deletion of database cluster", *clusterName, clusterOutput)
+		cluster = clusterOutput.DBCluster
 	}
 
-	return &DatabaseDeleteOutput{clusterOutput, instanceOutput}, nil
-}
-
-// normalizeTags strips the org from the given tags and ensures it is set to the API org
-func normalizeTags(tags []*rds.Tag) []*rds.Tag {
-	normalizedTags := []*rds.Tag{}
-	for _, t := range tags {
-		if aws.StringValue(t.Key) == "spinup:org" || aws.StringValue(t.Key) == "yale:org" {
-			continue
-		}
-		normalizedTags = append(normalizedTags, t)
-	}
-
-	normalizedTags = append(normalizedTags,
-		&rds.Tag{
-			Key:   aws.String("spinup:org"),
-			Value: aws.String(Org),
-		})
-
-	return normalizedTags
+	return &DatabaseResponse{cluster, instance}, nil
 }

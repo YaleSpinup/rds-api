@@ -12,54 +12,6 @@ import (
 	"github.com/gobuffalo/buffalo"
 )
 
-// DatabaseCreateInput is the input for creating a new database
-// The Instance part is required and defines the database instance properties
-// The Cluster is optional if the created database instance belongs to a new cluster
-type DatabaseCreateInput struct {
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBClusterInput
-	Cluster *rds.CreateDBClusterInput
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBInstanceInput
-	Instance *rds.CreateDBInstanceInput
-}
-
-// DatabaseCreateOutput is the output from creating a new database
-type DatabaseCreateOutput struct {
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBClusterOutput
-	Cluster *rds.CreateDBClusterOutput
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBInstanceOutput
-	Instance *rds.CreateDBInstanceOutput
-}
-
-// DatabaseDeleteOutput is the output from deleting a database
-type DatabaseDeleteOutput struct {
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#DeleteDBClusterOutput
-	Cluster *rds.DeleteDBClusterOutput
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#DeleteDBInstanceOutput
-	Instance *rds.DeleteDBInstanceOutput
-}
-
-// DatabaseModifyInput is the input for modifying an existing database
-type DatabaseModifyInput struct {
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#ModifyDBClusterInput
-	Cluster *rds.ModifyDBClusterInput
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#ModifyDBInstanceInput
-	Instance *rds.ModifyDBInstanceInput
-	Tags     []*rds.Tag
-}
-
-// DatabaseModifyOutput is the output from modifying an existing database
-type DatabaseModifyOutput struct {
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#ModifyDBClusterOutput
-	Cluster *rds.ModifyDBClusterOutput
-	// https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#ModifyDBInstanceOutput
-	Instance *rds.ModifyDBInstanceOutput
-}
-
-// DatabaseStateInput is the input for changing the database state
-type DatabaseStateInput struct {
-	State string
-}
-
 // DatabasesList gets a list of databases for a given account
 // If the `all=true` parameter is passed it will return a list of clusters in addition to instances.
 func DatabasesList(c buffalo.Context) error {
@@ -169,13 +121,13 @@ func DatabasesGet(c buffalo.Context) error {
 
 // DatabasesPost creates a database in a given account
 func DatabasesPost(c buffalo.Context) error {
-	input := DatabaseCreateInput{}
-	if err := c.Bind(&input); err != nil {
+	req := DatabaseCreateRequest{}
+	if err := c.Bind(&req); err != nil {
 		log.Println(err)
 		return c.Error(400, err)
 	}
 
-	if input.Cluster == nil && input.Instance == nil {
+	if req.Cluster == nil && req.Instance == nil {
 		return c.Error(400, errors.New("Bad request: specify Cluster or Instance in request"))
 	}
 
@@ -188,7 +140,7 @@ func DatabasesPost(c buffalo.Context) error {
 		client: rdsClient,
 	}
 
-	resp, err := orch.databaseCreate(c, &input)
+	resp, err := orch.databaseCreate(c, &req)
 	if err != nil {
 		return handleError(c, err)
 	}
