@@ -21,23 +21,25 @@ func SnapshotsList(c buffalo.Context) error {
 
 	log.Printf("getting snapshots for %s", c.Param("db"))
 
-	var clusterSnapshotsOutput *rds.DescribeDBClusterSnapshotsOutput
-	var instanceSnapshotsOutput *rds.DescribeDBSnapshotsOutput
-	var err error
-	var items int
-
-	if clusterSnapshotsOutput, err = rdsClient.Service.DescribeDBClusterSnapshotsWithContext(c, &rds.DescribeDBClusterSnapshotsInput{DBClusterIdentifier: aws.String(c.Param("db"))}); err != nil {
+	clusterSnapshotsOutput, err := rdsClient.Service.DescribeDBClusterSnapshotsWithContext(c, &rds.DescribeDBClusterSnapshotsInput{
+		DBClusterIdentifier: aws.String(c.Param("db")),
+	})
+	if err != nil {
 		return handleError(c, err)
 	}
 
-	if instanceSnapshotsOutput, err = rdsClient.Service.DescribeDBSnapshotsWithContext(c, &rds.DescribeDBSnapshotsInput{DBInstanceIdentifier: aws.String(c.Param("db"))}); err != nil {
+	instanceSnapshotsOutput, err := rdsClient.Service.DescribeDBSnapshotsWithContext(c, &rds.DescribeDBSnapshotsInput{
+		DBInstanceIdentifier: aws.String(c.Param("db")),
+	})
+	if err != nil {
 		return handleError(c, err)
 	}
 
-	if clusterSnapshotsOutput.DBClusterSnapshots == nil && instanceSnapshotsOutput.DBSnapshots == nil {
+	if len(clusterSnapshotsOutput.DBClusterSnapshots) == 0 && len(instanceSnapshotsOutput.DBSnapshots) == 0 {
 		return c.Error(404, errors.New("No snapshots found"))
 	}
 
+	var items int
 	if clusterSnapshotsOutput.DBClusterSnapshots != nil {
 		items = len(clusterSnapshotsOutput.DBClusterSnapshots)
 	} else {
@@ -65,36 +67,40 @@ func SnapshotsGet(c buffalo.Context) error {
 
 	log.Printf("getting information about snapshot %s", c.Param("snap"))
 
-	var clusterSnapshotsOutput *rds.DescribeDBClusterSnapshotsOutput
-	var instanceSnapshotsOutput *rds.DescribeDBSnapshotsOutput
-	var err error
-	var isClusterSnapshot, isInstanceSnapshot bool
 	var clusterSnapshot *rds.DBClusterSnapshot
 	var instanceSnapshot *rds.DBSnapshot
 
-	if clusterSnapshotsOutput, err = rdsClient.Service.DescribeDBClusterSnapshotsWithContext(c, &rds.DescribeDBClusterSnapshotsInput{DBClusterSnapshotIdentifier: aws.String(c.Param("snap"))}); err != nil {
+	clusterSnapshotsOutput, err := rdsClient.Service.DescribeDBClusterSnapshotsWithContext(c, &rds.DescribeDBClusterSnapshotsInput{
+		DBClusterSnapshotIdentifier: aws.String(c.Param("snap")),
+	})
+	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() != rds.ErrCodeDBClusterSnapshotNotFoundFault {
 				return c.Error(400, aerr)
 			}
 		}
-	} else if len(clusterSnapshotsOutput.DBClusterSnapshots) == 1 {
-		isClusterSnapshot = true
+	} else if len(clusterSnapshotsOutput.DBClusterSnapshots) > 1 {
+		return c.Error(500, errors.New("Unexpected number of snapshots"))
+	} else {
 		clusterSnapshot = clusterSnapshotsOutput.DBClusterSnapshots[0]
 	}
 
-	if instanceSnapshotsOutput, err = rdsClient.Service.DescribeDBSnapshotsWithContext(c, &rds.DescribeDBSnapshotsInput{DBSnapshotIdentifier: aws.String(c.Param("snap"))}); err != nil {
+	instanceSnapshotsOutput, err := rdsClient.Service.DescribeDBSnapshotsWithContext(c, &rds.DescribeDBSnapshotsInput{
+		DBSnapshotIdentifier: aws.String(c.Param("snap")),
+	})
+	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() != rds.ErrCodeDBSnapshotNotFoundFault {
 				return c.Error(400, aerr)
 			}
 		}
-	} else if len(instanceSnapshotsOutput.DBSnapshots) == 1 {
-		isInstanceSnapshot = true
+	} else if len(instanceSnapshotsOutput.DBSnapshots) > 1 {
+		return c.Error(500, errors.New("Unexpected number of snapshots"))
+	} else {
 		instanceSnapshot = instanceSnapshotsOutput.DBSnapshots[0]
 	}
 
-	if !isClusterSnapshot && !isInstanceSnapshot {
+	if clusterSnapshot == nil && instanceSnapshot == nil {
 		return c.Error(404, errors.New("Snapshot not found"))
 	}
 
