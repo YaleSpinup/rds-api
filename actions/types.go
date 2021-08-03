@@ -21,9 +21,7 @@ func (dcr DatabaseCreateRequest) String() string {
 // based on https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBInstanceInput
 type CreateDBInstanceInput struct {
 	AllocatedStorage            *int64
-	AutoMinorVersionUpgrade     *bool
 	BackupRetentionPeriod       *int64
-	CopyTagsToSnapshot          *bool
 	DBClusterIdentifier         *string
 	DBInstanceClass             *string
 	DBInstanceIdentifier        *string
@@ -37,8 +35,6 @@ type CreateDBInstanceInput struct {
 	MasterUsername              *string
 	MultiAZ                     *bool
 	Port                        *int64
-	PubliclyAccessible          *bool
-	StorageEncrypted            *bool
 	Tags                        []*Tag
 	VpcSecurityGroupIds         []*string
 }
@@ -47,7 +43,6 @@ type CreateDBInstanceInput struct {
 // based on https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBClusterInput
 type CreateDBClusterInput struct {
 	BackupRetentionPeriod       *int64
-	CopyTagsToSnapshot          *bool
 	DBClusterIdentifier         *string
 	DBClusterParameterGroupName *string
 	DBSubnetGroupName           *string
@@ -60,7 +55,6 @@ type CreateDBClusterInput struct {
 	Port                        *int64
 	ScalingConfiguration        *ScalingConfiguration
 	SnapshotIdentifier          *string
-	StorageEncrypted            *bool
 	Tags                        []*Tag
 	VpcSecurityGroupIds         []*string
 }

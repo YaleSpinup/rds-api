@@ -39,19 +39,19 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 				log.Println(pgErr.Error())
 				return nil, pgErr
 			}
-			log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
+			log.Println("determined ParameterGroupFamily based on Engine:", pgFamily)
 			cPg, ok := o.client.DefaultDBClusterParameterGroupName[pgFamily]
 			if !ok {
-				log.Println("No matching DefaultDBClusterParameterGroupName found in config, using AWS default PG")
+				log.Println("no matching DefaultDBClusterParameterGroupName found in config, using AWS default PG")
 			} else {
-				log.Println("Using DefaultDBClusterParameterGroupName:", cPg)
+				log.Println("using DefaultDBClusterParameterGroupName:", cPg)
 				req.Cluster.DBClusterParameterGroupName = aws.String(cPg)
 			}
 		}
 
 		input := &rds.CreateDBClusterInput{
 			BackupRetentionPeriod:       req.Cluster.BackupRetentionPeriod,
-			CopyTagsToSnapshot:          req.Cluster.CopyTagsToSnapshot,
+			CopyTagsToSnapshot:          aws.Bool(true),
 			DBClusterIdentifier:         req.Cluster.DBClusterIdentifier,
 			DBClusterParameterGroupName: req.Cluster.DBClusterParameterGroupName,
 			DBSubnetGroupName:           req.Cluster.DBSubnetGroupName,
@@ -62,23 +62,26 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 			MasterUserPassword:          req.Cluster.MasterUserPassword,
 			MasterUsername:              req.Cluster.MasterUsername,
 			Port:                        req.Cluster.Port,
-			ScalingConfiguration: &rds.ScalingConfiguration{
+			StorageEncrypted:            aws.Bool(true),
+			Tags:                        toRDSTags(req.Cluster.Tags),
+			VpcSecurityGroupIds:         req.Cluster.VpcSecurityGroupIds,
+		}
+
+		if req.Cluster.ScalingConfiguration != nil {
+			input.ScalingConfiguration = &rds.ScalingConfiguration{
 				AutoPause:             req.Cluster.ScalingConfiguration.AutoPause,
 				MaxCapacity:           req.Cluster.ScalingConfiguration.MaxCapacity,
 				MinCapacity:           req.Cluster.ScalingConfiguration.MinCapacity,
 				SecondsUntilAutoPause: req.Cluster.ScalingConfiguration.SecondsUntilAutoPause,
 				TimeoutAction:         req.Cluster.ScalingConfiguration.TimeoutAction,
-			},
-			StorageEncrypted:    req.Cluster.StorageEncrypted,
-			Tags:                toRDSTags(req.Cluster.Tags),
-			VpcSecurityGroupIds: req.Cluster.VpcSecurityGroupIds,
+			}
 		}
 
 		if clusterOutput, err = o.client.Service.CreateDBClusterWithContext(c, input); err != nil {
 			return nil, ErrCode("failed to create database cluster", err)
 		}
 
-		log.Println("Created RDS cluster", clusterOutput)
+		log.Println("created RDS cluster", clusterOutput)
 		cluster = clusterOutput.DBCluster
 	}
 
@@ -98,18 +101,18 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 				log.Println(pgErr.Error())
 				return nil, pgErr
 			}
-			log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
+			log.Println("determined ParameterGroupFamily based on Engine:", pgFamily)
 			if pg, ok := o.client.DefaultDBParameterGroupName[pgFamily]; ok {
-				log.Println("Using DefaultDBParameterGroupName:", pg)
+				log.Println("using DefaultDBParameterGroupName:", pg)
 				req.Instance.DBParameterGroupName = aws.String(pg)
 			}
 		}
 
 		input := &rds.CreateDBInstanceInput{
 			AllocatedStorage:            req.Instance.AllocatedStorage,
-			AutoMinorVersionUpgrade:     req.Instance.AutoMinorVersionUpgrade,
+			AutoMinorVersionUpgrade:     aws.Bool(true),
 			BackupRetentionPeriod:       req.Instance.BackupRetentionPeriod,
-			CopyTagsToSnapshot:          req.Instance.CopyTagsToSnapshot,
+			CopyTagsToSnapshot:          aws.Bool(true),
 			DBClusterIdentifier:         req.Instance.DBClusterIdentifier,
 			DBInstanceClass:             req.Instance.DBInstanceClass,
 			DBInstanceIdentifier:        req.Instance.DBInstanceIdentifier,
@@ -122,8 +125,8 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 			MasterUsername:              req.Instance.MasterUsername,
 			MultiAZ:                     req.Instance.MultiAZ,
 			Port:                        req.Instance.Port,
-			PubliclyAccessible:          req.Instance.PubliclyAccessible,
-			StorageEncrypted:            req.Instance.StorageEncrypted,
+			PubliclyAccessible:          aws.Bool(false),
+			StorageEncrypted:            aws.Bool(true),
 			Tags:                        toRDSTags(req.Instance.Tags),
 			VpcSecurityGroupIds:         req.Instance.VpcSecurityGroupIds,
 		}
@@ -131,25 +134,28 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 		if instanceOutput, err = o.client.Service.CreateDBInstanceWithContext(c, input); err != nil {
 			if req.Cluster != nil {
 				// if this instance was in a new cluster, delete the cluster
-				log.Println("Deleting cluster", *req.Cluster.DBClusterIdentifier)
+				log.Println("deleting cluster", *req.Cluster.DBClusterIdentifier)
 				clusterInput := &rds.DeleteDBClusterInput{
 					DBClusterIdentifier: req.Cluster.DBClusterIdentifier,
 					SkipFinalSnapshot:   aws.Bool(true),
 				}
 				if _, errc := o.client.Service.DeleteDBClusterWithContext(c, clusterInput); errc != nil {
-					log.Println("Failed to delete cluster", errc.Error())
+					log.Println("failed to delete cluster", errc.Error())
 				} else {
-					log.Println("Successfully requested deletion of cluster", *req.Cluster.DBClusterIdentifier)
+					log.Println("successfully requested deletion of cluster", *req.Cluster.DBClusterIdentifier)
 				}
 			}
 			return nil, ErrCode("failed to create database instance", err)
 		}
 
-		log.Println("Created RDS instance", instanceOutput)
+		log.Println("created RDS instance", instanceOutput)
 		instance = instanceOutput.DBInstance
 	}
 
-	return &DatabaseResponse{cluster, instance}, nil
+	return &DatabaseResponse{
+		Cluster:  cluster,
+		Instance: instance,
+	}, nil
 }
 
 // databaseModify modifies database parameters and tags
@@ -179,12 +185,12 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 					log.Println(pgErr.Error())
 					return nil, pgErr
 				}
-				log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
+				log.Println("determined ParameterGroupFamily based on Engine:", pgFamily)
 				cPg, ok := o.client.DefaultDBClusterParameterGroupName[pgFamily]
 				if !ok {
-					log.Println("No matching DefaultDBClusterParameterGroupName found in config, using AWS default PG")
+					log.Println("no matching DefaultDBClusterParameterGroupName found in config, using AWS default PG")
 				} else {
-					log.Println("Using DefaultDBClusterParameterGroupName:", cPg)
+					log.Println("using DefaultDBClusterParameterGroupName:", cPg)
 					input.Cluster.DBClusterParameterGroupName = aws.String(cPg)
 				}
 			}
@@ -194,7 +200,7 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 			return nil, ErrCode("failed to modify database cluster", err)
 		}
 
-		log.Println("Modified RDS cluster", clusterOutput)
+		log.Println("modified RDS cluster", clusterOutput)
 		cluster = clusterOutput.DBCluster
 	}
 
@@ -213,9 +219,9 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 					log.Println(pgErr.Error())
 					return nil, pgErr
 				}
-				log.Println("Determined ParameterGroupFamily based on Engine:", pgFamily)
+				log.Println("determined ParameterGroupFamily based on Engine:", pgFamily)
 				if pg, ok := o.client.DefaultDBParameterGroupName[pgFamily]; ok {
-					log.Println("Using DefaultDBParameterGroupName:", pg)
+					log.Println("using DefaultDBParameterGroupName:", pg)
 					input.Instance.DBParameterGroupName = aws.String(pg)
 				}
 			}
@@ -225,12 +231,12 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 			return nil, ErrCode("failed to modify database instance", err)
 		}
 
-		log.Println("Modified RDS instance", instanceOutput)
+		log.Println("modified RDS instance", instanceOutput)
 		instance = instanceOutput.DBInstance
 	}
 
 	if input.Tags != nil {
-		log.Println("Updating tags for "+id, input.Tags)
+		log.Println("updating tags for "+id, input.Tags)
 
 		// determine ARN(s) for this RDS resource
 		arns, err := o.client.DetermineArn(id)
@@ -249,11 +255,14 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 			}); err != nil {
 				return nil, ErrCode("failed to add tags to database", err)
 			}
-			log.Println("Updated tags for RDS resource", arn)
+			log.Println("updated tags for RDS resource", arn)
 		}
 	}
 
-	return &DatabaseResponse{cluster, instance}, nil
+	return &DatabaseResponse{
+		Cluster:  cluster,
+		Instance: instance,
+	}, nil
 }
 
 // databaseDelete deletes a database
@@ -278,7 +287,7 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() == rds.ErrCodeDBInstanceNotFoundFault {
-				log.Printf("No matching database instance found: %s", id)
+				log.Printf("no matching database instance found: %s", id)
 				instanceNotFound = true
 			} else {
 				return nil, ErrCode("failed to describe database instance", err)
@@ -304,18 +313,18 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		}
 
 		if snapshot && clusterName == nil {
-			log.Printf("Deleting database %s and creating final snapshot", id)
+			log.Printf("deleting database %s and creating final snapshot", id)
 			instanceInput.FinalDBSnapshotIdentifier = aws.String("final-" + id)
 			instanceInput.SkipFinalSnapshot = aws.Bool(false)
 		} else {
-			log.Printf("Deleting database %s without creating final snapshot", id)
+			log.Printf("deleting database %s without creating final snapshot", id)
 		}
 
 		if instanceOutput, err = o.client.Service.DeleteDBInstanceWithContext(c, instanceInput); err != nil {
 			return nil, ErrCode("failed to delete database instance", err)
 		}
 
-		log.Println("Successfully requested deletion of database instance", id, instanceOutput)
+		log.Println("successfully requested deletion of database instance", id, instanceOutput)
 		instance = instanceOutput.DBInstance
 	}
 
@@ -328,11 +337,11 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		}
 
 		if snapshot {
-			log.Printf("Trying to delete associated database cluster %s with final snapshot", *clusterName)
+			log.Printf("trying to delete associated database cluster %s with final snapshot", *clusterName)
 			clusterInput.FinalDBSnapshotIdentifier = aws.String("final-" + *clusterName)
 			clusterInput.SkipFinalSnapshot = aws.Bool(false)
 		} else {
-			log.Printf("Trying to delete associated database cluster %s", *clusterName)
+			log.Printf("trying to delete associated database cluster %s", *clusterName)
 		}
 
 		// the cluster deletion will fail if there are still member instances in the cluster
@@ -340,7 +349,7 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 			return nil, ErrCode("failed to delete database cluster", err)
 		}
 
-		log.Println("Successfully requested deletion of database cluster", *clusterName, clusterOutput)
+		log.Println("successfully requested deletion of database cluster", *clusterName, clusterOutput)
 		cluster = clusterOutput.DBCluster
 	}
 
@@ -353,20 +362,23 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		}
 
 		if snapshot {
-			log.Printf("Trying to delete database cluster %s with final snapshot", *clusterName)
+			log.Printf("trying to delete database cluster %s with final snapshot", *clusterName)
 			clusterInput.FinalDBSnapshotIdentifier = aws.String("final-" + *clusterName)
 			clusterInput.SkipFinalSnapshot = aws.Bool(false)
 		} else {
-			log.Printf("Trying to delete database cluster %s", *clusterName)
+			log.Printf("trying to delete database cluster %s", *clusterName)
 		}
 
 		if clusterOutput, err = o.client.Service.DeleteDBClusterWithContext(c, clusterInput); err != nil {
 			return nil, ErrCode("failed to delete database cluster", err)
 		}
 
-		log.Println("Successfully requested deletion of database cluster", *clusterName, clusterOutput)
+		log.Println("successfully requested deletion of database cluster", *clusterName, clusterOutput)
 		cluster = clusterOutput.DBCluster
 	}
 
-	return &DatabaseResponse{cluster, instance}, nil
+	return &DatabaseResponse{
+		Cluster:  cluster,
+		Instance: instance,
+	}, nil
 }
