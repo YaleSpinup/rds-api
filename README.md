@@ -190,6 +190,97 @@ PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora/power
 }
 ```
 
+### Getting a list of snapshots for a database/cluster
+
+This will return list of snapshots (with details) for the specified database in either `DBClusterSnapshots` or `DBSnapshots`, depending if it's a cluster or an instance.
+It will also set an `X-Items` header containing the total number of snapshots in the list.
+
+```
+GET http://127.0.0.1:3000/v1/rds/{account}/mydbcluster/snapshots
+```
+```
+{
+    "DBClusterSnapshots": [
+        {
+            ...
+            "DBClusterIdentifier": "mydbcluster",
+            "DBClusterSnapshotIdentifier": "rds:mydbcluster-2021-07-21-08-37",
+            ...
+        },
+        {
+            ...
+            "DBClusterIdentifier": "mydbcluster",
+            "DBClusterSnapshotIdentifier": "rds:mydbcluster-2021-07-22-08-37",
+            ...
+        },
+        ...
+```
+
+or
+
+```
+GET http://127.0.0.1:3000/v1/rds/{account}/mydbinstance/snapshots
+```
+```
+{
+    "DBSnapshots": [
+        {
+            ...
+            "DBInstanceIdentifier": "mydbinstance",
+            "DBSnapshotIdentifier": "rds:mydbinstance-2021-07-21-05-20",
+            ...
+        },
+        {
+            ...
+            "DBInstanceIdentifier": "mydbinstance",
+            "DBSnapshotIdentifier": "rds:mydbinstance-2021-07-22-05-20",
+            ...
+        },
+        ...
+```
+
+### Getting information about a specific snapshot
+
+This will return details about a snapshot in either `DBClusterSnapshot` or `DBSnapshot`, depending if it's a cluster or an instance snapshot.
+
+```
+GET http://127.0.0.1:3000/v1/rds/{account}/snapshots/rds:mydbinstance-2021-07-22-05-20
+```
+```
+{
+    "DBSnapshot": {
+        "AllocatedStorage": 20,
+        "AvailabilityZone": "us-east-1d",
+        "DBInstanceIdentifier": "mydbinstance",
+        "DBSnapshotArn": "arn:aws:rds:us-east-1:01234567890:snapshot:rds:mydbinstance-2021-07-22-05-20",
+        "DBSnapshotIdentifier": "rds:mydbinstance-2021-07-22-05-20",
+        "DbiResourceId": "db-DH55SGP1L9S4DHZ6564CAO7PUQ",
+        "Encrypted": true,
+        "Engine": "postgres",
+        "EngineVersion": "10.15",
+        "IAMDatabaseAuthenticationEnabled": false,
+        "InstanceCreateTime": "2021-05-07T18:46:08.571Z",
+        "Iops": null,
+        "KmsKeyId": "arn:aws:kms:us-east-1:01234567890:key/32c76e50-8fab-5e15-cba4-eef7f4a042f7",
+        "LicenseModel": "postgresql-license",
+        "MasterUsername": "test",
+        "OptionGroupName": "default:postgres-10",
+        "PercentProgress": 100,
+        "Port": 5432,
+        "ProcessorFeatures": null,
+        "SnapshotCreateTime": "2021-07-22T05:20:00.000Z",
+        "SnapshotType": "automated",
+        "SourceDBSnapshotIdentifier": null,
+        "SourceRegion": null,
+        "Status": "available",
+        "StorageType": "gp2",
+        "TdeCredentialArn": null,
+        "Timezone": null,
+        "VpcId": "vpc-01234567"
+    }
+}
+```
+
 ## Development
 
 - Install Buffalo framework (v0.13+): https://gobuffalo.io/en/docs/installation
