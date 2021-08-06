@@ -140,9 +140,22 @@ func DatabasesPost(c buffalo.Context) error {
 		client: rdsClient,
 	}
 
-	resp, err := orch.databaseCreate(c, &req)
-	if err != nil {
-		return handleError(c, err)
+	var resp *DatabaseResponse
+	var err error
+
+	if (req.Cluster != nil && req.Cluster.SnapshotIdentifier != nil) || (req.Instance != nil && req.Instance.SnapshotIdentifier != nil) {
+		// restoring database from snapshot
+		if req.Cluster != nil && req.Instance != nil {
+			return c.Error(400, errors.New("Bad request: when restoring from snapshot, only specify Cluster or Instance in request"))
+		}
+		if resp, err = orch.databaseRestore(c, &req); err != nil {
+			return handleError(c, err)
+		}
+	} else {
+		// creating database from scratch
+		if resp, err = orch.databaseCreate(c, &req); err != nil {
+			return handleError(c, err)
+		}
 	}
 
 	return c.Render(200, r.JSON(resp))

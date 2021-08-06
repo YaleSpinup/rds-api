@@ -10,7 +10,114 @@ import (
 	"github.com/gobuffalo/buffalo"
 )
 
-// databaseCreate orchestrates the creation of a repository from the DatabaseCreateInput
+// databaseRestore orchestrates the creation of a database from a snapshot in the DatabaseCreateInput
+func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreateRequest) (*DatabaseResponse, error) {
+	log.Printf("creating database from snapshot request %+v", req)
+
+	var snapshotId string
+	resp := &DatabaseResponse{}
+
+	if req.Cluster != nil {
+		snapshotId = aws.StringValue(req.Cluster.SnapshotIdentifier)
+		if snapshotId == "" {
+			return nil, errors.New("empty snapshot identifier")
+		}
+
+		var snapshot *rds.DBClusterSnapshot
+		snapshotsOutput, err := o.client.Service.DescribeDBClusterSnapshotsWithContext(c, &rds.DescribeDBClusterSnapshotsInput{
+			DBClusterSnapshotIdentifier: aws.String(snapshotId),
+		})
+		if err != nil {
+			return nil, err
+		} else if len(snapshotsOutput.DBClusterSnapshots) > 1 {
+			return nil, errors.New("unexpected number of snapshots")
+		} else {
+			snapshot = snapshotsOutput.DBClusterSnapshots[0]
+		}
+
+		log.Printf("got snapshot info: %+v", snapshot)
+
+		log.Printf("restoring database cluster from snapshot %s", snapshotId)
+
+		req.Cluster.Tags = normalizeTags(req.Cluster.Tags)
+
+		// set default subnet group
+		if req.Cluster.DBSubnetGroupName == nil {
+			req.Cluster.DBSubnetGroupName = aws.String(o.client.DefaultSubnetGroup)
+		}
+	} else if req.Instance != nil {
+		snapshotId = aws.StringValue(req.Instance.SnapshotIdentifier)
+		if snapshotId == "" {
+			return nil, errors.New("empty snapshot identifier")
+		}
+
+		// get information about the snapshot
+		var snapshot *rds.DBSnapshot
+		snapshotsOutput, err := o.client.Service.DescribeDBSnapshotsWithContext(c, &rds.DescribeDBSnapshotsInput{
+			DBSnapshotIdentifier: aws.String(snapshotId),
+		})
+		if err != nil {
+			return nil, err
+		} else if len(snapshotsOutput.DBSnapshots) > 1 {
+			return nil, errors.New("unexpected number of snapshots")
+		} else {
+			snapshot = snapshotsOutput.DBSnapshots[0]
+		}
+
+		req.Instance.Tags = normalizeTags(req.Instance.Tags)
+
+		// set default subnet group
+		if req.Instance.DBSubnetGroupName == nil {
+			req.Instance.DBSubnetGroupName = aws.String(o.client.DefaultSubnetGroup)
+		}
+
+		// set default parameter group
+		if req.Instance.DBParameterGroupName == nil {
+			pgFamily, pgErr := o.client.DetermineParameterGroupFamily(snapshot.Engine, snapshot.EngineVersion)
+			if pgErr != nil {
+				log.Println(pgErr.Error())
+				return nil, pgErr
+			}
+			log.Println("determined ParameterGroupFamily based on Engine:", pgFamily)
+			if pg, ok := o.client.DefaultDBParameterGroupName[pgFamily]; ok {
+				log.Println("using DefaultDBParameterGroupName:", pg)
+				req.Instance.DBParameterGroupName = aws.String(pg)
+			}
+		}
+
+		input := &rds.RestoreDBInstanceFromDBSnapshotInput{
+			AutoMinorVersionUpgrade:     aws.Bool(true),
+			CopyTagsToSnapshot:          aws.Bool(true),
+			DBInstanceIdentifier:        req.Instance.DBInstanceIdentifier,
+			DBParameterGroupName:        req.Instance.DBParameterGroupName,
+			DBSnapshotIdentifier:        aws.String(snapshotId),
+			DBSubnetGroupName:           req.Instance.DBSubnetGroupName,
+			EnableCloudwatchLogsExports: req.Instance.EnableCloudwatchLogsExports,
+			MultiAZ:                     req.Instance.MultiAZ,
+			Port:                        req.Instance.Port,
+			PubliclyAccessible:          aws.Bool(false),
+			Tags:                        toRDSTags(req.Instance.Tags),
+			VpcSecurityGroupIds:         req.Instance.VpcSecurityGroupIds,
+		}
+
+		log.Printf("restoring database instance: %+v", *input)
+
+		output, err := o.client.Service.RestoreDBInstanceFromDBSnapshotWithContext(c, input)
+		if err != nil {
+			return nil, ErrCode("failed to create database instance from snapshot", err)
+		}
+
+		log.Printf("created RDS instance from snapshot: %+v", output.DBInstance)
+
+		resp.Instance = output.DBInstance
+	} else {
+		return nil, errors.New("invalid request")
+	}
+
+	return resp, nil
+}
+
+// databaseCreate orchestrates the creation of a database from the DatabaseCreateInput
 // It will create a database instance as specified by the `Instance` hash parameters.
 // If a `Cluster` hash is also given, it will first create an RDS cluster and the instance next.
 // If only `Cluster` is specified, it will create an RDS cluster (usually for Aurora serverless)

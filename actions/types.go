@@ -26,7 +26,6 @@ type CreateDBInstanceInput struct {
 	DBInstanceClass             *string
 	DBInstanceIdentifier        *string
 	DBParameterGroupName        *string
-	DBSnapshotIdentifier        *string
 	DBSubnetGroupName           *string
 	EnableCloudwatchLogsExports []*string
 	Engine                      *string
@@ -35,6 +34,7 @@ type CreateDBInstanceInput struct {
 	MasterUsername              *string
 	MultiAZ                     *bool
 	Port                        *int64
+	SnapshotIdentifier          *string
 	Tags                        []*Tag
 	VpcSecurityGroupIds         []*string
 }
