@@ -47,7 +47,7 @@ POST http://127.0.0.1:3000/v1/rds/{account}
 
 All instance creation parameters are listed at https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBInstanceInput
 
-To create an Aurora cluster with one database instance:
+To create an Aurora provisioned cluster with one database instance:
 
 ```
 POST http://127.0.0.1:3000/v1/rds/{account}
@@ -103,6 +103,63 @@ POST http://127.0.0.1:3000/v1/rds/{account}
 }
 ```
 
+### Restoring a database from snapshot
+
+You can use the same endpoint for creating a database but just specify the name of the snapshot (`SnapshotIdentifier`) in the input.
+
+For example, to restore a Postgres database instance:
+
+```
+POST http://127.0.0.1:3000/v1/rds/{account}
+{
+   "Instance":{
+      "DBInstanceIdentifier":"restored-mypostgres",
+      "SnapshotIdentifier": "rds:spinup-db000001-2021-08-08-08-08",
+      "VpcSecurityGroupIds":[
+         "sg-12345678"
+      ]
+   }
+}
+```
+
+To restore an Aurora provisioned cluster (you need to specify the size of the database instance):
+
+```
+POST http://127.0.0.1:3000/v1/rds/{account}
+{
+   "Cluster":{
+      "DBClusterIdentifier":"restored-myaurora",
+      "SnapshotIdentifier": "rds:spinup-db000fff-2021-08-09-10-11",
+      "VpcSecurityGroupIds":[
+         "sg-12345678"
+      ]
+   },
+   "Instance": {
+       "DBInstanceClass": "db.t3.small"
+   }
+}
+```
+
+To restore an Aurora serverless cluster:
+
+```
+POST http://127.0.0.1:3000/v1/rds/{account}
+{
+   "Cluster":{
+      "DBClusterIdentifier":"test-restored-svrless-aurora",
+      "SnapshotIdentifier": "rds:spinup-db123abc-2021-08-07-06-05",
+      "ScalingConfiguration": {
+        "AutoPause": true,
+        "MaxCapacity": 1,
+        "MinCapacity": 1,
+        "SecondsUntilAutoPause": 300
+      },
+      "VpcSecurityGroupIds":[
+         "sg-12345678"
+      ]
+   }
+}```
+
 ### Getting details about a database
 
 To get details about a specific database instance or cluster:
@@ -137,57 +194,6 @@ To get details about _all_ database instances in the given account (to list both
 
 ```
 GET http://127.0.0.1:3000/v1/rds/{account}[?all=true]
-```
-
-### Modifying database parameters
-
-You can specify either cluster or instance parameters in the PUT to modify a cluster or an instance.
-
-For example, to change the master password for an Aurora cluster:
-
-```
-PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora
-{
-   "Cluster": {
-      "MasterUserPassword": "EXAMPLE",
-      "ApplyImmediately": true
-   }
-}
-```
-
-### Updating tags for a database
-
-You can pass a list of tags (Key/Value pairs) to add or updated on the given database. If there is an RDS cluster and instance with the same name, the tags for both will be updated.
-
-```
-PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora
-{
-   "Tags": [
-      {
-         "Key": "NewTag",
-         "Value": "new"
-      }
-   ]
-}
-```
-
-### Deleting a database
-
-By default, a final snapshot is _not_ created when deleting a database instance. You can override that by adding `snapshot=true` query parameter.
-
-```
-DELETE http://127.0.0.1:3000/v1/rds/{account}/mypostgres[?snapshot=true]
-```
-
-The API will check if the database instance belongs to a cluster and will automatically delete the cluster if this is the last member.
-
-### Stopping and starting a database/cluster
-
-```
-PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora/power
-{
-   "state": "stop|start"
-}
 ```
 
 ### Getting a list of snapshots for a database/cluster
@@ -278,6 +284,57 @@ GET http://127.0.0.1:3000/v1/rds/{account}/snapshots/rds:mydbinstance-2021-07-22
         "Timezone": null,
         "VpcId": "vpc-01234567"
     }
+}
+```
+
+### Modifying database parameters
+
+You can specify either cluster or instance parameters in the PUT to modify a cluster or an instance.
+
+For example, to change the master password for an Aurora cluster:
+
+```
+PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora
+{
+   "Cluster": {
+      "MasterUserPassword": "EXAMPLE",
+      "ApplyImmediately": true
+   }
+}
+```
+
+### Updating tags for a database
+
+You can pass a list of tags (Key/Value pairs) to add or updated on the given database. If there is an RDS cluster and instance with the same name, the tags for both will be updated.
+
+```
+PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora
+{
+   "Tags": [
+      {
+         "Key": "NewTag",
+         "Value": "new"
+      }
+   ]
+}
+```
+
+### Deleting a database
+
+By default, a final snapshot is _not_ created when deleting a database instance. You can override that by adding `snapshot=true` query parameter.
+
+```
+DELETE http://127.0.0.1:3000/v1/rds/{account}/mypostgres[?snapshot=true]
+```
+
+The API will check if the database instance belongs to a cluster and will automatically delete the cluster if this is the last member.
+
+### Stopping and starting a database/cluster
+
+```
+PUT http://127.0.0.1:3000/v1/rds/{account}/myaurora/power
+{
+   "state": "stop|start"
 }
 ```
 
