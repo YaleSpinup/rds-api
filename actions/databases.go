@@ -145,9 +145,6 @@ func DatabasesPost(c buffalo.Context) error {
 
 	if (req.Cluster != nil && req.Cluster.SnapshotIdentifier != nil) || (req.Instance != nil && req.Instance.SnapshotIdentifier != nil) {
 		// restoring database from snapshot
-		if req.Cluster != nil && req.Instance != nil {
-			return c.Error(400, errors.New("Bad request: when restoring from snapshot, only specify Cluster or Instance in request"))
-		}
 		if resp, err = orch.databaseRestore(c, &req); err != nil {
 			return handleError(c, err)
 		}
