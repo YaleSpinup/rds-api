@@ -287,6 +287,17 @@ GET http://127.0.0.1:3000/v1/rds/{account}/snapshots/rds:mydbinstance-2021-07-22
 }
 ```
 
+### Creating a database snapshot
+
+This will create a manual snapshot of the specified database.
+
+```
+POST http://127.0.0.1:3000/v1/rds/{account}/{db}/snapshots
+{
+    "SnapshotIdentifier": "mytestbackup-1"
+}
+```
+
 ### Deleting a specific snapshot
 
 This will delete a manual snapshot (automatic snapshots cannot be deleted but can be controlled by the backup retention period).

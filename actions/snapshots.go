@@ -12,6 +12,74 @@ import (
 	"github.com/gobuffalo/buffalo"
 )
 
+// SnapshotsPost creates a manual snapshot for a given database instance or cluster
+func SnapshotsPost(c buffalo.Context) error {
+	req := SnapshotCreateRequest{}
+	if err := c.Bind(&req); err != nil {
+		log.Println(err)
+		return c.Error(400, err)
+	}
+
+	if req.SnapshotIdentifier == nil {
+		return c.Error(400, errors.New("Bad request: specify SnapshotIdentifier in request"))
+	}
+
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
+	log.Printf("creating snapshot for %s", c.Param("db"))
+
+	var clusterSnapshot *rds.DBClusterSnapshot
+	var instanceSnapshot *rds.DBSnapshot
+
+	clusterSnapshotOutput, err := rdsClient.Service.CreateDBClusterSnapshotWithContext(c, &rds.CreateDBClusterSnapshotInput{
+		DBClusterIdentifier:         aws.String(c.Param("db")),
+		DBClusterSnapshotIdentifier: req.SnapshotIdentifier,
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() != rds.ErrCodeDBClusterNotFoundFault {
+				return c.Error(400, aerr)
+			}
+		}
+	} else {
+		clusterSnapshot = clusterSnapshotOutput.DBClusterSnapshot
+	}
+
+	if clusterSnapshot == nil {
+		// this is not a cluster database, just try to back up the instance
+		instanceSnapshotOutput, err := rdsClient.Service.CreateDBSnapshotWithContext(c, &rds.CreateDBSnapshotInput{
+			DBInstanceIdentifier: aws.String(c.Param("db")),
+			DBSnapshotIdentifier: req.SnapshotIdentifier,
+		})
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				if aerr.Code() != rds.ErrCodeDBInstanceNotFoundFault {
+					return c.Error(400, aerr)
+				}
+			}
+		} else {
+			instanceSnapshot = instanceSnapshotOutput.DBSnapshot
+		}
+	}
+
+	if clusterSnapshot == nil && instanceSnapshot == nil {
+		return c.Error(404, errors.New("Database not found"))
+	}
+
+	output := struct {
+		DBClusterSnapshot *rds.DBClusterSnapshot `json:"DBClusterSnapshot,omitempty"`
+		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
+	}{
+		clusterSnapshot,
+		instanceSnapshot,
+	}
+
+	return c.Render(200, r.JSON(output))
+}
+
 // SnapshotsList gets a list of snapshots for a given database instance or cluster
 func SnapshotsList(c buffalo.Context) error {
 	rdsClient, ok := RDS[c.Param("account")]
@@ -140,17 +208,19 @@ func SnapshotsDelete(c buffalo.Context) error {
 		clusterSnapshot = clusterSnapshotOutput.DBClusterSnapshot
 	}
 
-	instanceSnapshotOutput, err := rdsClient.Service.DeleteDBSnapshotWithContext(c, &rds.DeleteDBSnapshotInput{
-		DBSnapshotIdentifier: aws.String(c.Param("snap")),
-	})
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() != rds.ErrCodeDBSnapshotNotFoundFault {
-				return c.Error(400, aerr)
+	if clusterSnapshot == nil {
+		instanceSnapshotOutput, err := rdsClient.Service.DeleteDBSnapshotWithContext(c, &rds.DeleteDBSnapshotInput{
+			DBSnapshotIdentifier: aws.String(c.Param("snap")),
+		})
+		if err != nil {
+			if aerr, ok := err.(awserr.Error); ok {
+				if aerr.Code() != rds.ErrCodeDBSnapshotNotFoundFault {
+					return c.Error(400, aerr)
+				}
 			}
+		} else {
+			instanceSnapshot = instanceSnapshotOutput.DBSnapshot
 		}
-	} else {
-		instanceSnapshot = instanceSnapshotOutput.DBSnapshot
 	}
 
 	if clusterSnapshot == nil && instanceSnapshot == nil {

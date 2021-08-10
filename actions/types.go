@@ -17,6 +17,10 @@ func (dcr DatabaseCreateRequest) String() string {
 	return string(s)
 }
 
+type SnapshotCreateRequest struct {
+	SnapshotIdentifier *string
+}
+
 // CreateDBInstanceInput is the input for creating a new database instance
 // based on https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBInstanceInput
 type CreateDBInstanceInput struct {
