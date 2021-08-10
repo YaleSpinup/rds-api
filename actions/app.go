@@ -110,6 +110,7 @@ func App() *buffalo.App {
 		rdsV1API.GET("/{db}/snapshots", SnapshotsList)
 		rdsV1API.DELETE("/{db}", DatabasesDelete)
 		rdsV1API.GET("/snapshots/{snap}", SnapshotsGet)
+		rdsV1API.DELETE("/snapshots/{snap}", SnapshotsDelete)
 
 		log.Printf("Started rds-api in org %s", Org)
 	}

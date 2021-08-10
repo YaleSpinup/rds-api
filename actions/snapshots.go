@@ -114,3 +114,56 @@ func SnapshotsGet(c buffalo.Context) error {
 
 	return c.Render(200, r.JSON(output))
 }
+
+// SnapshotsDelete deletes a specific database snapshot
+func SnapshotsDelete(c buffalo.Context) error {
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
+	log.Printf("deleting snapshot %s", c.Param("snap"))
+
+	var clusterSnapshot *rds.DBClusterSnapshot
+	var instanceSnapshot *rds.DBSnapshot
+
+	clusterSnapshotOutput, err := rdsClient.Service.DeleteDBClusterSnapshotWithContext(c, &rds.DeleteDBClusterSnapshotInput{
+		DBClusterSnapshotIdentifier: aws.String(c.Param("snap")),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() != rds.ErrCodeDBClusterSnapshotNotFoundFault {
+				return c.Error(400, aerr)
+			}
+		}
+	} else {
+		clusterSnapshot = clusterSnapshotOutput.DBClusterSnapshot
+	}
+
+	instanceSnapshotOutput, err := rdsClient.Service.DeleteDBSnapshotWithContext(c, &rds.DeleteDBSnapshotInput{
+		DBSnapshotIdentifier: aws.String(c.Param("snap")),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() != rds.ErrCodeDBSnapshotNotFoundFault {
+				return c.Error(400, aerr)
+			}
+		}
+	} else {
+		instanceSnapshot = instanceSnapshotOutput.DBSnapshot
+	}
+
+	if clusterSnapshot == nil && instanceSnapshot == nil {
+		return c.Error(404, errors.New("Snapshot not found"))
+	}
+
+	output := struct {
+		DBClusterSnapshot *rds.DBClusterSnapshot `json:"DBClusterSnapshot,omitempty"`
+		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
+	}{
+		clusterSnapshot,
+		instanceSnapshot,
+	}
+
+	return c.Render(200, r.JSON(output))
+}

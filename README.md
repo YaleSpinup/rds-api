@@ -287,6 +287,14 @@ GET http://127.0.0.1:3000/v1/rds/{account}/snapshots/rds:mydbinstance-2021-07-22
 }
 ```
 
+### Deleting a specific snapshot
+
+This will delete a manual snapshot (automatic snapshots cannot be deleted but can be controlled by the backup retention period).
+
+```
+DELETE http://127.0.0.1:3000/v1/rds/{account}/snapshots/rds:mydbinstance-2021-07-22-05-20
+```
+
 ### Modifying database parameters
 
 You can specify either cluster or instance parameters in the PUT to modify a cluster or an instance.
