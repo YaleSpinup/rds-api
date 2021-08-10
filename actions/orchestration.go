@@ -27,6 +27,11 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 	if req.Cluster != nil {
 		req.Cluster.Tags = normalizeTags(req.Cluster.Tags)
 
+		// set default storage encryption
+		if req.Cluster.StorageEncrypted == nil {
+			req.Cluster.StorageEncrypted = aws.Bool(true)
+		}
+
 		// set default subnet group
 		if req.Cluster.DBSubnetGroupName == nil {
 			req.Cluster.DBSubnetGroupName = aws.String(o.client.DefaultSubnetGroup)
@@ -62,7 +67,7 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 			MasterUserPassword:          req.Cluster.MasterUserPassword,
 			MasterUsername:              req.Cluster.MasterUsername,
 			Port:                        req.Cluster.Port,
-			StorageEncrypted:            aws.Bool(true),
+			StorageEncrypted:            req.Cluster.StorageEncrypted,
 			Tags:                        toRDSTags(req.Cluster.Tags),
 			VpcSecurityGroupIds:         req.Cluster.VpcSecurityGroupIds,
 		}
@@ -88,6 +93,11 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 	// create rds instance, if specified
 	if req.Instance != nil {
 		req.Instance.Tags = normalizeTags(req.Instance.Tags)
+
+		// set default storage encryption
+		if req.Instance.StorageEncrypted == nil {
+			req.Instance.StorageEncrypted = aws.Bool(true)
+		}
 
 		// set default subnet group
 		if req.Instance.DBSubnetGroupName == nil {
@@ -126,7 +136,7 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 			MultiAZ:                     req.Instance.MultiAZ,
 			Port:                        req.Instance.Port,
 			PubliclyAccessible:          aws.Bool(false),
-			StorageEncrypted:            aws.Bool(true),
+			StorageEncrypted:            req.Instance.StorageEncrypted,
 			Tags:                        toRDSTags(req.Instance.Tags),
 			VpcSecurityGroupIds:         req.Instance.VpcSecurityGroupIds,
 		}

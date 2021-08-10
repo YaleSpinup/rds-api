@@ -35,6 +35,7 @@ type CreateDBInstanceInput struct {
 	MasterUsername              *string
 	MultiAZ                     *bool
 	Port                        *int64
+	StorageEncrypted            *bool
 	Tags                        []*Tag
 	VpcSecurityGroupIds         []*string
 }
@@ -55,6 +56,7 @@ type CreateDBClusterInput struct {
 	Port                        *int64
 	ScalingConfiguration        *ScalingConfiguration
 	SnapshotIdentifier          *string
+	StorageEncrypted            *bool
 	Tags                        []*Tag
 	VpcSecurityGroupIds         []*string
 }
