@@ -12,6 +12,56 @@ import (
 	"github.com/gobuffalo/buffalo"
 )
 
+// SnapshotsPost creates a manual snapshot for a given database instance or cluster
+func SnapshotsPost(c buffalo.Context) error {
+	req := SnapshotCreateRequest{}
+	if err := c.Bind(&req); err != nil {
+		log.Println(err)
+		return c.Error(400, err)
+	}
+
+	if req.SnapshotIdentifier == "" {
+		return c.Error(400, errors.New("Bad request: specify SnapshotIdentifier in request"))
+	}
+
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
+	orch := &rdsOrchestrator{
+		client: rdsClient,
+	}
+
+	log.Printf("creating snapshot for %s", c.Param("db"))
+
+	output := struct {
+		DBClusterSnapshot *rds.DBClusterSnapshot `json:"DBClusterSnapshot,omitempty"`
+		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
+	}{}
+
+	clusterSnapshot, err := orch.clusterSnapshotCreate(c, c.Param("db"), req.SnapshotIdentifier)
+	if err != nil {
+		return err
+	}
+	output.DBClusterSnapshot = clusterSnapshot
+
+	if clusterSnapshot == nil {
+		// this is not a cluster database, just try to back up the instance
+		instanceSnapshot, err := orch.instanceSnapshotCreate(c, c.Param("db"), req.SnapshotIdentifier)
+		if err != nil {
+			return err
+		}
+		output.DBSnapshot = instanceSnapshot
+	}
+
+	if output.DBClusterSnapshot == nil && output.DBSnapshot == nil {
+		return c.Error(404, errors.New("Database not found"))
+	}
+
+	return c.Render(200, r.JSON(output))
+}
+
 // SnapshotsList gets a list of snapshots for a given database instance or cluster
 func SnapshotsList(c buffalo.Context) error {
 	rdsClient, ok := RDS[c.Param("account")]
@@ -110,6 +160,46 @@ func SnapshotsGet(c buffalo.Context) error {
 	}{
 		clusterSnapshot,
 		instanceSnapshot,
+	}
+
+	return c.Render(200, r.JSON(output))
+}
+
+// SnapshotsDelete deletes a specific database snapshot
+func SnapshotsDelete(c buffalo.Context) error {
+	rdsClient, ok := RDS[c.Param("account")]
+	if !ok {
+		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	}
+
+	orch := &rdsOrchestrator{
+		client: rdsClient,
+	}
+
+	log.Printf("deleting snapshot %s", c.Param("snap"))
+
+	output := struct {
+		DBClusterSnapshot *rds.DBClusterSnapshot `json:"DBClusterSnapshot,omitempty"`
+		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
+	}{}
+
+	clusterSnapshot, err := orch.clusterSnapshotDelete(c, c.Param("snap"))
+	if err != nil {
+		return err
+	}
+	output.DBClusterSnapshot = clusterSnapshot
+
+	if clusterSnapshot == nil {
+		// this is not a cluster database, just try to back up the instance
+		instanceSnapshot, err := orch.instanceSnapshotDelete(c, c.Param("snap"))
+		if err != nil {
+			return err
+		}
+		output.DBSnapshot = instanceSnapshot
+	}
+
+	if output.DBClusterSnapshot == nil && output.DBSnapshot == nil {
+		return c.Error(404, errors.New("Snapshot not found"))
 	}
 
 	return c.Render(200, r.JSON(output))
