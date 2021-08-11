@@ -303,7 +303,7 @@ POST http://127.0.0.1:3000/v1/rds/{account}/{db}/snapshots
 This will delete a manual snapshot (automatic snapshots cannot be deleted but can be controlled by the backup retention period).
 
 ```
-DELETE http://127.0.0.1:3000/v1/rds/{account}/snapshots/rds:mydbinstance-2021-07-22-05-20
+DELETE http://127.0.0.1:3000/v1/rds/{account}/snapshots/mytestbackup-1
 ```
 
 ### Modifying database parameters
