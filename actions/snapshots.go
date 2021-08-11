@@ -29,6 +29,10 @@ func SnapshotsPost(c buffalo.Context) error {
 		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
 	}
 
+	orch := &rdsOrchestrator{
+		client: rdsClient,
+	}
+
 	log.Printf("creating snapshot for %s", c.Param("db"))
 
 	output := struct {
@@ -36,35 +40,19 @@ func SnapshotsPost(c buffalo.Context) error {
 		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
 	}{}
 
-	clusterSnapshotOutput, err := rdsClient.Service.CreateDBClusterSnapshotWithContext(c, &rds.CreateDBClusterSnapshotInput{
-		DBClusterIdentifier:         aws.String(c.Param("db")),
-		DBClusterSnapshotIdentifier: aws.String(req.SnapshotIdentifier),
-	})
+	clusterSnapshot, err := orch.clusterSnapshotCreate(c, c.Param("db"), req.SnapshotIdentifier)
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() != rds.ErrCodeDBClusterNotFoundFault {
-				return c.Error(400, aerr)
-			}
-		}
-	} else {
-		output.DBClusterSnapshot = clusterSnapshotOutput.DBClusterSnapshot
+		return err
 	}
+	output.DBClusterSnapshot = clusterSnapshot
 
-	if output.DBClusterSnapshot == nil {
+	if clusterSnapshot == nil {
 		// this is not a cluster database, just try to back up the instance
-		instanceSnapshotOutput, err := rdsClient.Service.CreateDBSnapshotWithContext(c, &rds.CreateDBSnapshotInput{
-			DBInstanceIdentifier: aws.String(c.Param("db")),
-			DBSnapshotIdentifier: aws.String(req.SnapshotIdentifier),
-		})
+		instanceSnapshot, err := orch.instanceSnapshotCreate(c, c.Param("db"), req.SnapshotIdentifier)
 		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				if aerr.Code() != rds.ErrCodeDBInstanceNotFoundFault {
-					return c.Error(400, aerr)
-				}
-			}
-		} else {
-			output.DBSnapshot = instanceSnapshotOutput.DBSnapshot
+			return err
 		}
+		output.DBSnapshot = instanceSnapshot
 	}
 
 	if output.DBClusterSnapshot == nil && output.DBSnapshot == nil {
@@ -184,6 +172,10 @@ func SnapshotsDelete(c buffalo.Context) error {
 		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
 	}
 
+	orch := &rdsOrchestrator{
+		client: rdsClient,
+	}
+
 	log.Printf("deleting snapshot %s", c.Param("snap"))
 
 	output := struct {
@@ -191,32 +183,19 @@ func SnapshotsDelete(c buffalo.Context) error {
 		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
 	}{}
 
-	clusterSnapshotOutput, err := rdsClient.Service.DeleteDBClusterSnapshotWithContext(c, &rds.DeleteDBClusterSnapshotInput{
-		DBClusterSnapshotIdentifier: aws.String(c.Param("snap")),
-	})
+	clusterSnapshot, err := orch.clusterSnapshotDelete(c, c.Param("snap"))
 	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() != rds.ErrCodeDBClusterSnapshotNotFoundFault {
-				return c.Error(400, aerr)
-			}
-		}
-	} else {
-		output.DBClusterSnapshot = clusterSnapshotOutput.DBClusterSnapshot
+		return err
 	}
+	output.DBClusterSnapshot = clusterSnapshot
 
-	if output.DBClusterSnapshot == nil {
-		instanceSnapshotOutput, err := rdsClient.Service.DeleteDBSnapshotWithContext(c, &rds.DeleteDBSnapshotInput{
-			DBSnapshotIdentifier: aws.String(c.Param("snap")),
-		})
+	if clusterSnapshot == nil {
+		// this is not a cluster database, just try to back up the instance
+		instanceSnapshot, err := orch.instanceSnapshotDelete(c, c.Param("snap"))
 		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				if aerr.Code() != rds.ErrCodeDBSnapshotNotFoundFault {
-					return c.Error(400, aerr)
-				}
-			}
-		} else {
-			output.DBSnapshot = instanceSnapshotOutput.DBSnapshot
+			return err
 		}
+		output.DBSnapshot = instanceSnapshot
 	}
 
 	if output.DBClusterSnapshot == nil && output.DBSnapshot == nil {

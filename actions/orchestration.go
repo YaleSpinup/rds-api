@@ -599,3 +599,73 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		Instance: instance,
 	}, nil
 }
+
+func (o *rdsOrchestrator) clusterSnapshotCreate(c buffalo.Context, cluster, snapshot string) (*rds.DBClusterSnapshot, error) {
+	clusterSnapshotOutput, err := o.client.Service.CreateDBClusterSnapshotWithContext(c, &rds.CreateDBClusterSnapshotInput{
+		DBClusterIdentifier:         aws.String(cluster),
+		DBClusterSnapshotIdentifier: aws.String(snapshot),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == rds.ErrCodeDBClusterNotFoundFault {
+				return nil, nil
+			}
+			return nil, c.Error(400, aerr)
+		}
+		return nil, err
+	}
+
+	return clusterSnapshotOutput.DBClusterSnapshot, nil
+}
+
+func (o *rdsOrchestrator) clusterSnapshotDelete(c buffalo.Context, snapshot string) (*rds.DBClusterSnapshot, error) {
+	clusterSnapshotOutput, err := o.client.Service.DeleteDBClusterSnapshotWithContext(c, &rds.DeleteDBClusterSnapshotInput{
+		DBClusterSnapshotIdentifier: aws.String(snapshot),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == rds.ErrCodeDBClusterSnapshotNotFoundFault {
+				return nil, nil
+			}
+			return nil, c.Error(400, aerr)
+		}
+		return nil, err
+	}
+
+	return clusterSnapshotOutput.DBClusterSnapshot, nil
+}
+
+func (o *rdsOrchestrator) instanceSnapshotCreate(c buffalo.Context, instance, snapshot string) (*rds.DBSnapshot, error) {
+	instanceSnapshotOutput, err := o.client.Service.CreateDBSnapshotWithContext(c, &rds.CreateDBSnapshotInput{
+		DBInstanceIdentifier: aws.String(instance),
+		DBSnapshotIdentifier: aws.String(snapshot),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == rds.ErrCodeDBInstanceNotFoundFault {
+				return nil, nil
+			}
+			return nil, c.Error(400, aerr)
+		}
+		return nil, err
+	}
+
+	return instanceSnapshotOutput.DBSnapshot, nil
+}
+
+func (o *rdsOrchestrator) instanceSnapshotDelete(c buffalo.Context, snapshot string) (*rds.DBSnapshot, error) {
+	instanceSnapshotOutput, err := o.client.Service.DeleteDBSnapshotWithContext(c, &rds.DeleteDBSnapshotInput{
+		DBSnapshotIdentifier: aws.String(snapshot),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == rds.ErrCodeDBSnapshotNotFoundFault {
+				return nil, nil
+			}
+			return nil, c.Error(400, aerr)
+		}
+		return nil, err
+	}
+
+	return instanceSnapshotOutput.DBSnapshot, nil
+}
