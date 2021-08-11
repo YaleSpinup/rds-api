@@ -27,17 +27,17 @@ func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreate
 			return nil, errors.New("empty DBClusterIdentifier")
 		}
 
-		var snapshot *rds.DBClusterSnapshot
 		snapshotsOutput, err := o.client.Service.DescribeDBClusterSnapshotsWithContext(c, &rds.DescribeDBClusterSnapshotsInput{
 			DBClusterSnapshotIdentifier: aws.String(snapshotId),
 		})
 		if err != nil {
 			return nil, err
-		} else if len(snapshotsOutput.DBClusterSnapshots) > 1 {
-			return nil, errors.New("unexpected number of snapshots")
-		} else {
-			snapshot = snapshotsOutput.DBClusterSnapshots[0]
 		}
+		if len(snapshotsOutput.DBClusterSnapshots) > 1 {
+			return nil, errors.New("unexpected number of snapshots")
+		}
+
+		snapshot := snapshotsOutput.DBClusterSnapshots[0]
 
 		log.Printf("got snapshot info: %+v", snapshot)
 
@@ -162,17 +162,17 @@ func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreate
 		}
 
 		// get information about the snapshot
-		var snapshot *rds.DBSnapshot
 		snapshotsOutput, err := o.client.Service.DescribeDBSnapshotsWithContext(c, &rds.DescribeDBSnapshotsInput{
 			DBSnapshotIdentifier: aws.String(snapshotId),
 		})
 		if err != nil {
 			return nil, err
-		} else if len(snapshotsOutput.DBSnapshots) > 1 {
-			return nil, errors.New("unexpected number of snapshots")
-		} else {
-			snapshot = snapshotsOutput.DBSnapshots[0]
 		}
+		if len(snapshotsOutput.DBSnapshots) > 1 {
+			return nil, errors.New("unexpected number of snapshots")
+		}
+
+		snapshot := snapshotsOutput.DBSnapshots[0]
 
 		req.Instance.Tags = normalizeTags(req.Instance.Tags)
 
