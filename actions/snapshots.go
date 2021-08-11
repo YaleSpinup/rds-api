@@ -20,7 +20,7 @@ func SnapshotsPost(c buffalo.Context) error {
 		return c.Error(400, err)
 	}
 
-	if req.SnapshotIdentifier == nil {
+	if req.SnapshotIdentifier == "" {
 		return c.Error(400, errors.New("Bad request: specify SnapshotIdentifier in request"))
 	}
 
@@ -31,12 +31,14 @@ func SnapshotsPost(c buffalo.Context) error {
 
 	log.Printf("creating snapshot for %s", c.Param("db"))
 
-	var clusterSnapshot *rds.DBClusterSnapshot
-	var instanceSnapshot *rds.DBSnapshot
+	output := struct {
+		DBClusterSnapshot *rds.DBClusterSnapshot `json:"DBClusterSnapshot,omitempty"`
+		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
+	}{}
 
 	clusterSnapshotOutput, err := rdsClient.Service.CreateDBClusterSnapshotWithContext(c, &rds.CreateDBClusterSnapshotInput{
 		DBClusterIdentifier:         aws.String(c.Param("db")),
-		DBClusterSnapshotIdentifier: req.SnapshotIdentifier,
+		DBClusterSnapshotIdentifier: aws.String(req.SnapshotIdentifier),
 	})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
@@ -45,14 +47,14 @@ func SnapshotsPost(c buffalo.Context) error {
 			}
 		}
 	} else {
-		clusterSnapshot = clusterSnapshotOutput.DBClusterSnapshot
+		output.DBClusterSnapshot = clusterSnapshotOutput.DBClusterSnapshot
 	}
 
-	if clusterSnapshot == nil {
+	if output.DBClusterSnapshot == nil {
 		// this is not a cluster database, just try to back up the instance
 		instanceSnapshotOutput, err := rdsClient.Service.CreateDBSnapshotWithContext(c, &rds.CreateDBSnapshotInput{
 			DBInstanceIdentifier: aws.String(c.Param("db")),
-			DBSnapshotIdentifier: req.SnapshotIdentifier,
+			DBSnapshotIdentifier: aws.String(req.SnapshotIdentifier),
 		})
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok {
@@ -61,20 +63,12 @@ func SnapshotsPost(c buffalo.Context) error {
 				}
 			}
 		} else {
-			instanceSnapshot = instanceSnapshotOutput.DBSnapshot
+			output.DBSnapshot = instanceSnapshotOutput.DBSnapshot
 		}
 	}
 
-	if clusterSnapshot == nil && instanceSnapshot == nil {
+	if output.DBClusterSnapshot == nil && output.DBSnapshot == nil {
 		return c.Error(404, errors.New("Database not found"))
-	}
-
-	output := struct {
-		DBClusterSnapshot *rds.DBClusterSnapshot `json:"DBClusterSnapshot,omitempty"`
-		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
-	}{
-		clusterSnapshot,
-		instanceSnapshot,
 	}
 
 	return c.Render(200, r.JSON(output))
@@ -192,8 +186,10 @@ func SnapshotsDelete(c buffalo.Context) error {
 
 	log.Printf("deleting snapshot %s", c.Param("snap"))
 
-	var clusterSnapshot *rds.DBClusterSnapshot
-	var instanceSnapshot *rds.DBSnapshot
+	output := struct {
+		DBClusterSnapshot *rds.DBClusterSnapshot `json:"DBClusterSnapshot,omitempty"`
+		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
+	}{}
 
 	clusterSnapshotOutput, err := rdsClient.Service.DeleteDBClusterSnapshotWithContext(c, &rds.DeleteDBClusterSnapshotInput{
 		DBClusterSnapshotIdentifier: aws.String(c.Param("snap")),
@@ -205,10 +201,10 @@ func SnapshotsDelete(c buffalo.Context) error {
 			}
 		}
 	} else {
-		clusterSnapshot = clusterSnapshotOutput.DBClusterSnapshot
+		output.DBClusterSnapshot = clusterSnapshotOutput.DBClusterSnapshot
 	}
 
-	if clusterSnapshot == nil {
+	if output.DBClusterSnapshot == nil {
 		instanceSnapshotOutput, err := rdsClient.Service.DeleteDBSnapshotWithContext(c, &rds.DeleteDBSnapshotInput{
 			DBSnapshotIdentifier: aws.String(c.Param("snap")),
 		})
@@ -219,20 +215,12 @@ func SnapshotsDelete(c buffalo.Context) error {
 				}
 			}
 		} else {
-			instanceSnapshot = instanceSnapshotOutput.DBSnapshot
+			output.DBSnapshot = instanceSnapshotOutput.DBSnapshot
 		}
 	}
 
-	if clusterSnapshot == nil && instanceSnapshot == nil {
+	if output.DBClusterSnapshot == nil && output.DBSnapshot == nil {
 		return c.Error(404, errors.New("Snapshot not found"))
-	}
-
-	output := struct {
-		DBClusterSnapshot *rds.DBClusterSnapshot `json:"DBClusterSnapshot,omitempty"`
-		DBSnapshot        *rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
-	}{
-		clusterSnapshot,
-		instanceSnapshot,
 	}
 
 	return c.Render(200, r.JSON(output))

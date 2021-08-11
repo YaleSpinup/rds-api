@@ -18,7 +18,7 @@ func (dcr DatabaseCreateRequest) String() string {
 }
 
 type SnapshotCreateRequest struct {
-	SnapshotIdentifier *string
+	SnapshotIdentifier string
 }
 
 // CreateDBInstanceInput is the input for creating a new database instance
