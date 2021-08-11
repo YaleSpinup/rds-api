@@ -14,11 +14,11 @@ import (
 func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreateRequest) (*DatabaseResponse, error) {
 	log.Printf("creating database from snapshot request %+v", req)
 
-	var snapshotId string
 	resp := &DatabaseResponse{}
 
+	// restore a database cluster
 	if req.Cluster != nil {
-		snapshotId = aws.StringValue(req.Cluster.SnapshotIdentifier)
+		snapshotId := aws.StringValue(req.Cluster.SnapshotIdentifier)
 		if snapshotId == "" {
 			return nil, errors.New("empty snapshot identifier")
 		}
@@ -151,8 +151,13 @@ func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreate
 
 			resp.Instance = instanceOutput.DBInstance
 		}
-	} else if req.Instance != nil {
-		snapshotId = aws.StringValue(req.Instance.SnapshotIdentifier)
+
+		return resp, nil
+	}
+
+	// restore a database instance
+	if req.Instance != nil && req.Cluster == nil {
+		snapshotId := aws.StringValue(req.Instance.SnapshotIdentifier)
 		if snapshotId == "" {
 			return nil, errors.New("empty snapshot identifier")
 		}
@@ -220,11 +225,10 @@ func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreate
 		log.Printf("created RDS instance from snapshot: %+v", output.DBInstance)
 
 		resp.Instance = output.DBInstance
-	} else {
-		return nil, errors.New("invalid request")
+		return resp, nil
 	}
 
-	return resp, nil
+	return nil, errors.New("invalid request")
 }
 
 // databaseCreate orchestrates the creation of a database from the DatabaseCreateInput
