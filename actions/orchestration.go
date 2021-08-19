@@ -10,7 +10,228 @@ import (
 	"github.com/gobuffalo/buffalo"
 )
 
-// databaseCreate orchestrates the creation of a repository from the DatabaseCreateInput
+// databaseRestore orchestrates the creation of a database from a snapshot in the DatabaseCreateInput
+func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreateRequest) (*DatabaseResponse, error) {
+	log.Printf("creating database from snapshot request %+v", req)
+
+	resp := &DatabaseResponse{}
+
+	// restore a database cluster
+	if req.Cluster != nil {
+		snapshotId := aws.StringValue(req.Cluster.SnapshotIdentifier)
+		if snapshotId == "" {
+			return nil, errors.New("empty snapshot identifier")
+		}
+
+		if req.Cluster.DBClusterIdentifier == nil {
+			return nil, errors.New("empty DBClusterIdentifier")
+		}
+
+		snapshotsOutput, err := o.client.Service.DescribeDBClusterSnapshotsWithContext(c, &rds.DescribeDBClusterSnapshotsInput{
+			DBClusterSnapshotIdentifier: aws.String(snapshotId),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(snapshotsOutput.DBClusterSnapshots) > 1 {
+			return nil, errors.New("unexpected number of snapshots")
+		}
+
+		snapshot := snapshotsOutput.DBClusterSnapshots[0]
+
+		log.Printf("got snapshot info: %+v", snapshot)
+
+		if aws.StringValue(snapshot.EngineMode) != "serverless" {
+			// provisioned and other non-serverless clusters need an instance
+			// check that required input was provided
+			if req.Instance == nil {
+				return nil, errors.New("missing Instance parameters for this cluster, engine mode " + *snapshot.EngineMode)
+			}
+
+			if req.Instance.DBInstanceClass == nil {
+				return nil, errors.New("empty DBInstanceClass, required for engine mode " + *snapshot.EngineMode)
+			}
+		}
+
+		log.Printf("restoring database cluster from snapshot %s", snapshotId)
+
+		req.Cluster.Tags = normalizeTags(req.Cluster.Tags)
+
+		// set default subnet group
+		if req.Cluster.DBSubnetGroupName == nil {
+			req.Cluster.DBSubnetGroupName = aws.String(o.client.DefaultSubnetGroup)
+		}
+
+		// set default cluster parameter group
+		if req.Cluster.DBClusterParameterGroupName == nil {
+			pgFamily, pgErr := o.client.DetermineParameterGroupFamily(snapshot.Engine, snapshot.EngineVersion)
+			if pgErr != nil {
+				log.Println(pgErr.Error())
+				return nil, pgErr
+			}
+			log.Println("determined ParameterGroupFamily based on Engine:", pgFamily)
+			cPg, ok := o.client.DefaultDBClusterParameterGroupName[pgFamily]
+			if !ok {
+				log.Println("no matching DefaultDBClusterParameterGroupName found in config, using AWS default PG")
+			} else {
+				log.Println("using DefaultDBClusterParameterGroupName:", cPg)
+				req.Cluster.DBClusterParameterGroupName = aws.String(cPg)
+			}
+		}
+
+		input := &rds.RestoreDBClusterFromSnapshotInput{
+			CopyTagsToSnapshot:          aws.Bool(true),
+			DBClusterIdentifier:         req.Cluster.DBClusterIdentifier,
+			DBClusterParameterGroupName: req.Cluster.DBClusterParameterGroupName,
+			DBSubnetGroupName:           req.Cluster.DBSubnetGroupName,
+			EnableCloudwatchLogsExports: req.Cluster.EnableCloudwatchLogsExports,
+			Engine:                      snapshot.Engine,
+			EngineMode:                  snapshot.EngineMode,
+			Port:                        req.Cluster.Port,
+			SnapshotIdentifier:          aws.String(snapshotId),
+			Tags:                        toRDSTags(req.Cluster.Tags),
+			VpcSecurityGroupIds:         req.Cluster.VpcSecurityGroupIds,
+		}
+
+		if req.Cluster.ScalingConfiguration != nil {
+			input.ScalingConfiguration = &rds.ScalingConfiguration{
+				AutoPause:             req.Cluster.ScalingConfiguration.AutoPause,
+				MaxCapacity:           req.Cluster.ScalingConfiguration.MaxCapacity,
+				MinCapacity:           req.Cluster.ScalingConfiguration.MinCapacity,
+				SecondsUntilAutoPause: req.Cluster.ScalingConfiguration.SecondsUntilAutoPause,
+				TimeoutAction:         req.Cluster.ScalingConfiguration.TimeoutAction,
+			}
+		}
+
+		log.Printf("restoring database cluster: %+v", *input)
+
+		output, err := o.client.Service.RestoreDBClusterFromSnapshotWithContext(c, input)
+		if err != nil {
+			return nil, ErrCode("failed to create database cluster from snapshot", err)
+		}
+
+		log.Printf("created RDS cluster from snapshot: %+v", output.DBCluster)
+
+		resp.Cluster = output.DBCluster
+
+		// create instance in the cluster, if not serverless (e.g. provisioned)
+		if aws.StringValue(snapshot.EngineMode) != "serverless" {
+			log.Printf("cluster engine mode is %s, creating database instance ...", *snapshot.EngineMode)
+
+			input := &rds.CreateDBInstanceInput{
+				AutoMinorVersionUpgrade: aws.Bool(true),
+				CopyTagsToSnapshot:      aws.Bool(true),
+				DBClusterIdentifier:     req.Cluster.DBClusterIdentifier,
+				DBInstanceClass:         req.Instance.DBInstanceClass,
+				DBInstanceIdentifier:    req.Cluster.DBClusterIdentifier,
+				Engine:                  snapshot.Engine,
+				PubliclyAccessible:      aws.Bool(false),
+				StorageEncrypted:        aws.Bool(true),
+				Tags:                    toRDSTags(req.Cluster.Tags),
+			}
+
+			instanceOutput, err := o.client.Service.CreateDBInstanceWithContext(c, input)
+			if err != nil {
+				// delete the cluster to clean up
+				log.Println("error creating instance, deleting cluster", *req.Cluster.DBClusterIdentifier)
+				clusterInput := &rds.DeleteDBClusterInput{
+					DBClusterIdentifier: req.Cluster.DBClusterIdentifier,
+					SkipFinalSnapshot:   aws.Bool(true),
+				}
+				if _, errc := o.client.Service.DeleteDBClusterWithContext(c, clusterInput); errc != nil {
+					log.Println("failed to delete cluster", errc.Error())
+				} else {
+					log.Println("successfully requested deletion of cluster", *req.Cluster.DBClusterIdentifier)
+				}
+
+				return nil, ErrCode("failed to create database instance", err)
+			}
+
+			log.Println("created RDS instance", instanceOutput)
+
+			resp.Instance = instanceOutput.DBInstance
+		}
+
+		return resp, nil
+	}
+
+	// restore a database instance
+	if req.Instance != nil && req.Cluster == nil {
+		snapshotId := aws.StringValue(req.Instance.SnapshotIdentifier)
+		if snapshotId == "" {
+			return nil, errors.New("empty snapshot identifier")
+		}
+
+		if req.Instance.DBInstanceIdentifier == nil {
+			return nil, errors.New("empty DBInstanceIdentifier")
+		}
+
+		// get information about the snapshot
+		snapshotsOutput, err := o.client.Service.DescribeDBSnapshotsWithContext(c, &rds.DescribeDBSnapshotsInput{
+			DBSnapshotIdentifier: aws.String(snapshotId),
+		})
+		if err != nil {
+			return nil, err
+		}
+		if len(snapshotsOutput.DBSnapshots) > 1 {
+			return nil, errors.New("unexpected number of snapshots")
+		}
+
+		snapshot := snapshotsOutput.DBSnapshots[0]
+
+		req.Instance.Tags = normalizeTags(req.Instance.Tags)
+
+		// set default subnet group
+		if req.Instance.DBSubnetGroupName == nil {
+			req.Instance.DBSubnetGroupName = aws.String(o.client.DefaultSubnetGroup)
+		}
+
+		// set default parameter group
+		if req.Instance.DBParameterGroupName == nil {
+			pgFamily, pgErr := o.client.DetermineParameterGroupFamily(snapshot.Engine, snapshot.EngineVersion)
+			if pgErr != nil {
+				log.Println(pgErr.Error())
+				return nil, pgErr
+			}
+			log.Println("determined ParameterGroupFamily based on Engine:", pgFamily)
+			if pg, ok := o.client.DefaultDBParameterGroupName[pgFamily]; ok {
+				log.Println("using DefaultDBParameterGroupName:", pg)
+				req.Instance.DBParameterGroupName = aws.String(pg)
+			}
+		}
+
+		input := &rds.RestoreDBInstanceFromDBSnapshotInput{
+			AutoMinorVersionUpgrade:     aws.Bool(true),
+			CopyTagsToSnapshot:          aws.Bool(true),
+			DBInstanceIdentifier:        req.Instance.DBInstanceIdentifier,
+			DBParameterGroupName:        req.Instance.DBParameterGroupName,
+			DBSnapshotIdentifier:        aws.String(snapshotId),
+			DBSubnetGroupName:           req.Instance.DBSubnetGroupName,
+			EnableCloudwatchLogsExports: req.Instance.EnableCloudwatchLogsExports,
+			MultiAZ:                     req.Instance.MultiAZ,
+			Port:                        req.Instance.Port,
+			PubliclyAccessible:          aws.Bool(false),
+			Tags:                        toRDSTags(req.Instance.Tags),
+			VpcSecurityGroupIds:         req.Instance.VpcSecurityGroupIds,
+		}
+
+		log.Printf("restoring database instance: %+v", *input)
+
+		output, err := o.client.Service.RestoreDBInstanceFromDBSnapshotWithContext(c, input)
+		if err != nil {
+			return nil, ErrCode("failed to create database instance from snapshot", err)
+		}
+
+		log.Printf("created RDS instance from snapshot: %+v", output.DBInstance)
+
+		resp.Instance = output.DBInstance
+		return resp, nil
+	}
+
+	return nil, errors.New("invalid request")
+}
+
+// databaseCreate orchestrates the creation of a database from the DatabaseCreateInput
 // It will create a database instance as specified by the `Instance` hash parameters.
 // If a `Cluster` hash is also given, it will first create an RDS cluster and the instance next.
 // If only `Cluster` is specified, it will create an RDS cluster (usually for Aurora serverless)
@@ -391,4 +612,74 @@ func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot 
 		Cluster:  cluster,
 		Instance: instance,
 	}, nil
+}
+
+func (o *rdsOrchestrator) clusterSnapshotCreate(c buffalo.Context, cluster, snapshot string) (*rds.DBClusterSnapshot, error) {
+	clusterSnapshotOutput, err := o.client.Service.CreateDBClusterSnapshotWithContext(c, &rds.CreateDBClusterSnapshotInput{
+		DBClusterIdentifier:         aws.String(cluster),
+		DBClusterSnapshotIdentifier: aws.String(snapshot),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == rds.ErrCodeDBClusterNotFoundFault {
+				return nil, nil
+			}
+			return nil, c.Error(400, aerr)
+		}
+		return nil, err
+	}
+
+	return clusterSnapshotOutput.DBClusterSnapshot, nil
+}
+
+func (o *rdsOrchestrator) clusterSnapshotDelete(c buffalo.Context, snapshot string) (*rds.DBClusterSnapshot, error) {
+	clusterSnapshotOutput, err := o.client.Service.DeleteDBClusterSnapshotWithContext(c, &rds.DeleteDBClusterSnapshotInput{
+		DBClusterSnapshotIdentifier: aws.String(snapshot),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == rds.ErrCodeDBClusterSnapshotNotFoundFault {
+				return nil, nil
+			}
+			return nil, c.Error(400, aerr)
+		}
+		return nil, err
+	}
+
+	return clusterSnapshotOutput.DBClusterSnapshot, nil
+}
+
+func (o *rdsOrchestrator) instanceSnapshotCreate(c buffalo.Context, instance, snapshot string) (*rds.DBSnapshot, error) {
+	instanceSnapshotOutput, err := o.client.Service.CreateDBSnapshotWithContext(c, &rds.CreateDBSnapshotInput{
+		DBInstanceIdentifier: aws.String(instance),
+		DBSnapshotIdentifier: aws.String(snapshot),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == rds.ErrCodeDBInstanceNotFoundFault {
+				return nil, nil
+			}
+			return nil, c.Error(400, aerr)
+		}
+		return nil, err
+	}
+
+	return instanceSnapshotOutput.DBSnapshot, nil
+}
+
+func (o *rdsOrchestrator) instanceSnapshotDelete(c buffalo.Context, snapshot string) (*rds.DBSnapshot, error) {
+	instanceSnapshotOutput, err := o.client.Service.DeleteDBSnapshotWithContext(c, &rds.DeleteDBSnapshotInput{
+		DBSnapshotIdentifier: aws.String(snapshot),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == rds.ErrCodeDBSnapshotNotFoundFault {
+				return nil, nil
+			}
+			return nil, c.Error(400, aerr)
+		}
+		return nil, err
+	}
+
+	return instanceSnapshotOutput.DBSnapshot, nil
 }
