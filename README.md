@@ -158,7 +158,8 @@ POST http://127.0.0.1:3000/v1/rds/{account}
          "sg-12345678"
       ]
    }
-}```
+}
+```
 
 ### Getting details about a database
 
