@@ -85,10 +85,6 @@ func SnapshotsList(c buffalo.Context) error {
 		return handleError(c, err)
 	}
 
-	if len(clusterSnapshotsOutput.DBClusterSnapshots) == 0 && len(instanceSnapshotsOutput.DBSnapshots) == 0 {
-		return c.Error(404, errors.New("No snapshots found"))
-	}
-
 	var items int
 	if clusterSnapshotsOutput.DBClusterSnapshots != nil {
 		items = len(clusterSnapshotsOutput.DBClusterSnapshots)
