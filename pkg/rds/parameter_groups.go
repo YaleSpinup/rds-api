@@ -23,5 +23,7 @@ func (cl Client) DetermineParameterGroupFamily(engine, engineVersion *string) (s
 		return "", errors.New("Unable to find any matching database engine/version")
 	}
 
+	// log.Printf("got DB engine versions: %+v", evResult)
+
 	return *evResult.DBEngineVersions[0].DBParameterGroupFamily, nil
 }
