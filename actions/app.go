@@ -81,7 +81,7 @@ func App() *buffalo.App {
 
 		// override values for test runs
 		if flag.Lookup("test.v") != nil {
-			ConfigFile = "../config/config.json"
+			ConfigFile = "../config/config.example.json"
 		}
 
 		// load json config
