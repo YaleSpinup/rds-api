@@ -8,7 +8,7 @@ require (
 	github.com/gobuffalo/buffalo v0.18.9
 	github.com/gobuffalo/envy v1.10.1
 	github.com/gobuffalo/mw-paramlogger v1.0.1
-	github.com/gobuffalo/packr/v2 v2.8.1
+	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/gobuffalo/suite/v3 v3.0.2
 	github.com/gobuffalo/x v0.1.0
 	github.com/pkg/errors v0.9.1
@@ -37,7 +37,7 @@ require (
 	github.com/gobuffalo/httptest v1.5.1 // indirect
 	github.com/gobuffalo/logger v1.0.6 // indirect
 	github.com/gobuffalo/meta v0.3.2 // indirect
-	github.com/gobuffalo/mw-csrf v1.0.0 // indirect
+	github.com/gobuffalo/mw-csrf v1.0.1 // indirect
 	github.com/gobuffalo/nulls v0.4.1 // indirect
 	github.com/gobuffalo/packd v1.0.1 // indirect
 	github.com/gobuffalo/plush/v4 v4.1.14 // indirect
