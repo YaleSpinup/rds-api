@@ -497,7 +497,6 @@ github.com/gobuffalo/mw-contenttype v0.0.0-20180802152300-74f5a47f4d56/go.mod h1
 github.com/gobuffalo/mw-contenttype v0.0.0-20190129203934-2554e742333b/go.mod h1:7x87+mDrr9Peh7AqhOtESyJLanMd2zQNz2Hts+vtBoE=
 github.com/gobuffalo/mw-csrf v0.0.0-20180802151833-446ff26e108b/go.mod h1:sbGtb8DmDZuDUQoxjr8hG1ZbLtZboD9xsn6p77ppcHo=
 github.com/gobuffalo/mw-csrf v0.0.0-20190129204204-25460a055517/go.mod h1:o5u+nnN0Oa7LBeDYH9QP36qeMPnXV9qbVnbZ4D+Kb0Q=
-github.com/gobuffalo/mw-csrf v1.0.0 h1:732iVOy7MgjoKoHn3twll1Q3gtRgxfAwPBOX9VDSIV8=
 github.com/gobuffalo/mw-csrf v1.0.0/go.mod h1:xl6AxaKONU6ZSOUtzzmpaQw0jpY6ofTBHDnEqrppyB4=
 github.com/gobuffalo/mw-csrf v1.0.1 h1:L4b3ZN5KpnyfqdfI0gu+HHPED5GMyCl1oHWTqE1hIvo=
 github.com/gobuffalo/mw-csrf v1.0.1/go.mod h1:JAbogWdDR+194rn3Rt8/qf/9RTmFvml9FXEGGAAJ9WU=
@@ -579,8 +578,6 @@ github.com/gobuffalo/packr/v2 v2.5.3/go.mod h1:sgEE1xNZ6G0FNN5xn9pevVu4nywaxHvgu
 github.com/gobuffalo/packr/v2 v2.6.0/go.mod h1:sgEE1xNZ6G0FNN5xn9pevVu4nywaxHvgup67xisti08=
 github.com/gobuffalo/packr/v2 v2.7.1/go.mod h1:qYEvAazPaVxy7Y7KR0W8qYEE+RymX74kETFqjFoFlOc=
 github.com/gobuffalo/packr/v2 v2.8.0/go.mod h1:PDk2k3vGevNE3SwVyVRgQCCXETC9SaONCNSXT1Q8M1g=
-github.com/gobuffalo/packr/v2 v2.8.1 h1:tkQpju6i3EtMXJ9uoF5GT6kB+LMTimDWD8Xvbz6zDVA=
-github.com/gobuffalo/packr/v2 v2.8.1/go.mod h1:c/PLlOuTU+p3SybaJATW3H6lX/iK7xEz5OeMf+NnJpg=
 github.com/gobuffalo/packr/v2 v2.8.3 h1:xE1yzvnO56cUC0sTpKR3DIbxZgB54AftTFMhB2XEWlY=
 github.com/gobuffalo/packr/v2 v2.8.3/go.mod h1:0SahksCVcx4IMnigTjiFuyldmTrdTctXsOdiU5KwbKc=
 github.com/gobuffalo/plush v3.7.16+incompatible/go.mod h1:rQ4zdtUUyZNqULlc6bqd5scsPfLKfT0+TGMChgduDvI=
@@ -963,7 +960,6 @@ github.com/karrick/godirwalk v1.12.0/go.mod h1:H5KPZjojv4lE+QYImBI8xVtrBRgYrIVsa
 github.com/karrick/godirwalk v1.14.1/go.mod h1:H5KPZjojv4lE+QYImBI8xVtrBRgYrIVsaRPx4tDPEn4=
 github.com/karrick/godirwalk v1.15.2/go.mod h1:j4mkqPuvaLI8mp1DroR3P6ad7cyYd4c1qeJ3RV7ULlk=
 github.com/karrick/godirwalk v1.15.3/go.mod h1:j4mkqPuvaLI8mp1DroR3P6ad7cyYd4c1qeJ3RV7ULlk=
-github.com/karrick/godirwalk v1.15.8/go.mod h1:j4mkqPuvaLI8mp1DroR3P6ad7cyYd4c1qeJ3RV7ULlk=
 github.com/karrick/godirwalk v1.16.1/go.mod h1:j4mkqPuvaLI8mp1DroR3P6ad7cyYd4c1qeJ3RV7ULlk=
 github.com/karrick/godirwalk v1.17.0 h1:b4kY7nqDdioR/6qnbHQyDvmA17u5G1cZ6J+CZXwSWoI=
 github.com/karrick/godirwalk v1.17.0/go.mod h1:j4mkqPuvaLI8mp1DroR3P6ad7cyYd4c1qeJ3RV7ULlk=
