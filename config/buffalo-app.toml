@@ -1,0 +1,13 @@
+name = "rds-api"
+bin = "bin/rds-api"
+vcs = "git"
+with_pop = false
+with_sqlite = false
+with_dep = false
+with_webpack = false
+with_nodejs = false
+with_yarn = false
+with_docker = false
+with_grifts = true
+as_web = true
+as_api = false

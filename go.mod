@@ -4,11 +4,10 @@ go 1.18
 
 require (
 	github.com/YaleSpinup/apierror v0.1.0
-	github.com/aws/aws-sdk-go v1.44.71
+	github.com/aws/aws-sdk-go v1.44.72
 	github.com/gobuffalo/buffalo v0.18.9
 	github.com/gobuffalo/envy v1.10.1
 	github.com/gobuffalo/mw-paramlogger v1.0.1
-	github.com/gobuffalo/packr/v2 v2.8.3
 	github.com/gobuffalo/suite/v3 v3.0.2
 	github.com/gobuffalo/x v0.1.0
 	github.com/pkg/errors v0.9.1
@@ -40,6 +39,7 @@ require (
 	github.com/gobuffalo/mw-csrf v1.0.1 // indirect
 	github.com/gobuffalo/nulls v0.4.1 // indirect
 	github.com/gobuffalo/packd v1.0.1 // indirect
+	github.com/gobuffalo/packr/v2 v2.8.3 // indirect
 	github.com/gobuffalo/plush/v4 v4.1.14 // indirect
 	github.com/gobuffalo/pop/v5 v5.3.4 // indirect
 	github.com/gobuffalo/pop/v6 v6.0.6 // indirect
@@ -68,9 +68,6 @@ require (
 	github.com/karrick/godirwalk v1.17.0 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/luna-duclos/instrumentedsql v1.1.3 // indirect
-	github.com/markbates/errx v1.1.0 // indirect
-	github.com/markbates/oncer v1.0.0 // indirect
-	github.com/markbates/safe v1.0.1 // indirect
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible // indirect
@@ -86,7 +83,7 @@ require (
 	github.com/spf13/cobra v1.5.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.8.0 // indirect
-	golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48 // indirect
+	golang.org/x/net v0.0.0-20220809184613-07c6da5e1ced // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.0.0-20220808155132-1c4a2a72c664 // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 // indirect
