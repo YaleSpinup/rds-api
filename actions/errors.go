@@ -206,13 +206,6 @@ func ErrCode(msg string, err error) error {
 			// for the specified DB security group.
 			rds.ErrCodeAuthorizationAlreadyExistsFault,
 
-			// ErrCodeCustomAvailabilityZoneAlreadyExistsFault for service response error code
-			// "CustomAvailabilityZoneAlreadyExists".
-			//
-			// CustomAvailabilityZoneName is already used by an existing custom Availability
-			// Zone.
-			rds.ErrCodeCustomAvailabilityZoneAlreadyExistsFault,
-
 			// ErrCodeDBClusterAlreadyExistsFault for service response error code
 			// "DBClusterAlreadyExistsFault".
 			//
@@ -378,12 +371,6 @@ func ErrCode(msg string, err error) error {
 			//
 			// The DB security group authorization quota has been reached.
 			rds.ErrCodeAuthorizationQuotaExceededFault,
-
-			// ErrCodeCustomAvailabilityZoneQuotaExceededFault for service response error code
-			// "CustomAvailabilityZoneQuotaExceeded".
-			//
-			// You have exceeded the maximum number of custom Availability Zones.
-			rds.ErrCodeCustomAvailabilityZoneQuotaExceededFault,
 
 			// ErrCodeDBClusterEndpointQuotaExceededFault for service response error code
 			// "DBClusterEndpointQuotaExceededFault".
