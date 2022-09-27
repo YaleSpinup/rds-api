@@ -1,20 +1,19 @@
 package actions
 
 import (
-	"fmt"
 	"time"
 
-	"github.com/YaleSpinup/apierror"
 	"github.com/YaleSpinup/rds-api/pkg/common"
 	"github.com/YaleSpinup/rds-api/pkg/session"
 	"github.com/patrickmn/go-cache"
 )
 
 type server struct {
-	accounts     map[string]common.RdsAccount
-	org          string
-	session      *session.Session
-	sessionCache *cache.Cache
+	accountsMap   map[string]common.AccountConfig
+	defaultConfig common.CommonConfig
+	org           string
+	session       *session.Session
+	sessionCache  *cache.Cache
 }
 
 func newServer(config common.Config) *server {
@@ -24,19 +23,24 @@ func newServer(config common.Config) *server {
 		session.WithExternalID(config.Account.ExternalID),
 		session.WithExternalRoleName(config.Account.Role),
 	)
+	accountsMap := make(map[string]common.AccountConfig)
+	for accountName, rdsAcc := range config.Accounts {
+		accountsMap[accountName] = common.NewAccountConfig(rdsAcc, config.DefaultConfig)
+	}
 
 	return &server{
-		accounts:     config.Accounts,
-		org:          config.Org,
-		session:      &sess,
-		sessionCache: cache.New(600*time.Second, 900*time.Second),
+		accountsMap:   accountsMap,
+		defaultConfig: config.DefaultConfig,
+		org:           config.Org,
+		session:       &sess,
+		sessionCache:  cache.New(600*time.Second, 900*time.Second),
 	}
 }
 
 // if we have an entry for the account name, return the associated account number
-func (s *server) mapAccountNumber(name string) (*common.RdsAccount, error) {
-	if a, ok := s.accounts[name]; ok {
-		return &a, nil
+func (s *server) mapAccountNumber(name string) common.AccountConfig {
+	if a, ok := s.accountsMap[name]; ok {
+		return a
 	}
-	return nil, apierror.New(apierror.ErrBadRequest, fmt.Sprintf("unknown account %s", name), nil)
+	return common.AccountConfig{AccountId: name, Config: s.defaultConfig}
 }

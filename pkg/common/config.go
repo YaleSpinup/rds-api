@@ -12,10 +12,11 @@ import (
 
 // Config is representation of the configuration data
 type Config struct {
-	Account  Account
-	Accounts map[string]RdsAccount
-	Token    string
-	Org      string
+	Account       Account
+	DefaultConfig CommonConfig
+	Accounts      map[string]RdsAccount
+	Token         string
+	Org           string
 }
 
 // Account is the configuration for an individual account
@@ -26,6 +27,12 @@ type Account struct {
 	Secret     string
 	Region     string
 	Role       string
+}
+
+type CommonConfig struct {
+	DefaultSubnetGroup                 string
+	DefaultDBParameterGroupName        map[string]string
+	DefaultDBClusterParameterGroupName map[string]string
 }
 
 // Account is the configuration for an individual account
@@ -71,4 +78,34 @@ func readConfig(r io.Reader) (Config, error) {
 		return c, errors.Wrap(err, "unable to decode JSON message")
 	}
 	return c, nil
+}
+
+type AccountConfig struct {
+	AccountId string
+	Config    CommonConfig
+}
+
+func NewAccountConfig(rdsAcc RdsAccount, defaultConfig CommonConfig) AccountConfig {
+	return AccountConfig{
+		AccountId: rdsAcc.AccountId,
+		Config:    defaultConfig,
+	}
+}
+
+func mergeConfig(defaultCfg CommonConfig, account RdsAccount) CommonConfig {
+	newCfg := CommonConfig{
+		DefaultSubnetGroup:                 account.DefaultSubnetGroup,
+		DefaultDBParameterGroupName:        account.DefaultDBParameterGroupName,
+		DefaultDBClusterParameterGroupName: account.DefaultDBClusterParameterGroupName,
+	}
+	if newCfg.DefaultSubnetGroup == "" {
+		newCfg.DefaultSubnetGroup = defaultCfg.DefaultSubnetGroup
+	}
+	if len(newCfg.DefaultDBParameterGroupName) == 0 {
+		newCfg.DefaultDBParameterGroupName = defaultCfg.DefaultDBParameterGroupName
+	}
+	if len(newCfg.DefaultDBClusterParameterGroupName) == 0 {
+		newCfg.DefaultDBClusterParameterGroupName = defaultCfg.DefaultDBClusterParameterGroupName
+	}
+	return newCfg
 }

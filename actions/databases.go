@@ -21,12 +21,9 @@ func (s *server) DatabasesList(c buffalo.Context) error {
 	// if all param is given, we'll return information about both instances and clusters
 	// otherwise, only database instances will be returned
 	all, _ := strconv.ParseBool(c.Param("all"))
-	account, err := s.mapAccountNumber(c.Param("account"))
-	if err != nil {
-		return handleError(c, err)
-	}
+	accountCfg := s.mapAccountNumber(c.Param("account"))
 
-	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", account.AccountId, s.session.RoleName)
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountCfg.AccountId, s.session.RoleName)
 	policy, err := generatePolicy("rds:DescribeDBInstances")
 	if err != nil {
 		return handleError(c, err)
@@ -39,11 +36,11 @@ func (s *server) DatabasesList(c buffalo.Context) error {
 		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
 	)
 	if err != nil {
-		msg := fmt.Sprintf("failed to assume role in account: %s", account.AccountId)
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountCfg.AccountId)
 		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
 	}
 
-	rdsClient := rdsapi.NewSession(*account, session.Session)
+	rdsClient := rdsapi.NewSession(session.Session, accountCfg.Config)
 
 	var clustersOutput *rds.DescribeDBClustersOutput
 	var instancesOutput *rds.DescribeDBInstancesOutput
