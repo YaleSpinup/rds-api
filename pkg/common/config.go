@@ -12,13 +12,25 @@ import (
 
 // Config is representation of the configuration data
 type Config struct {
-	Accounts map[string]Account
+	Account  Account
+	Accounts map[string]RdsAccount
 	Token    string
 	Org      string
 }
 
 // Account is the configuration for an individual account
 type Account struct {
+	Endpoint   string
+	ExternalID string
+	Akid       string
+	Secret     string
+	Region     string
+	Role       string
+}
+
+// Account is the configuration for an individual account
+type RdsAccount struct {
+	AccountId                          string
 	Region                             string
 	Akid                               string
 	Secret                             string

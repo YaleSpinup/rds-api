@@ -38,7 +38,7 @@ var (
 	Org string
 
 	// RDS is a global map of RDS clients
-	RDS = make(map[string]rds.Client)
+	RDS = make(map[string]*rds.Client)
 
 	// Version is the main version number
 	Version = rdsapi.Version
@@ -54,7 +54,7 @@ var (
 )
 
 type rdsOrchestrator struct {
-	client rds.Client
+	client *rds.Client
 }
 
 // App is where all routes and middleware for buffalo should be defined
@@ -94,8 +94,10 @@ func App() *buffalo.App {
 
 		// create a shared RDS session for each account
 		for account, c := range AppConfig.Accounts {
-			RDS[account] = rds.NewSession(c)
+			RDS[account] = rds.NewSession(c, nil)
 		}
+
+		s := newServer(AppConfig)
 
 		app.GET("/v1/rds/ping", PingPong)
 		app.GET("/v1/rds/version", VersionHandler)
@@ -103,7 +105,7 @@ func App() *buffalo.App {
 		rdsV1API := app.Group("/v1/rds/{account}")
 		rdsV1API.Use(sharedTokenAuth([]byte(AppConfig.Token)))
 		rdsV1API.POST("/", DatabasesPost)
-		rdsV1API.GET("/", DatabasesList)
+		rdsV1API.GET("/", s.DatabasesList)
 		rdsV1API.GET("/{db}", DatabasesGet)
 		rdsV1API.PUT("/{db}", DatabasesPut)
 		rdsV1API.PUT("/{db}/power", DatabasesPutState)

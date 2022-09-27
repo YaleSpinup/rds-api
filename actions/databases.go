@@ -1,9 +1,12 @@
 package actions
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 
+	"github.com/YaleSpinup/apierror"
+	rdsapi "github.com/YaleSpinup/rds-api/pkg/rds"
 	"github.com/pkg/errors"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -14,29 +17,41 @@ import (
 
 // DatabasesList gets a list of databases for a given account
 // If the `all=true` parameter is passed it will return a list of clusters in addition to instances.
-func DatabasesList(c buffalo.Context) error {
+func (s *server) DatabasesList(c buffalo.Context) error {
 	// if all param is given, we'll return information about both instances and clusters
 	// otherwise, only database instances will be returned
-	all := false
-	if b, err := strconv.ParseBool(c.Param("all")); err == nil {
-		all = b
+	all, _ := strconv.ParseBool(c.Param("all"))
+	account, err := s.mapAccountNumber(c.Param("account"))
+	if err != nil {
+		return handleError(c, err)
 	}
 
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", account.AccountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DescribeDBInstances")
+	if err != nil {
+		return handleError(c, err)
 	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", account.AccountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(*account, session.Session)
 
 	var clustersOutput *rds.DescribeDBClustersOutput
 	var instancesOutput *rds.DescribeDBInstancesOutput
-	var err error
-
 	if all {
 		if clustersOutput, err = rdsClient.Service.DescribeDBClustersWithContext(c, &rds.DescribeDBClustersInput{}); err != nil {
 			log.Println(err.Error())
 		}
 	}
-
 	instancesOutput, err = rdsClient.Service.DescribeDBInstancesWithContext(c, &rds.DescribeDBInstancesInput{})
 	if err != nil {
 		return handleError(c, err)

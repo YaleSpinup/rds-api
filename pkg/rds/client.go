@@ -20,14 +20,16 @@ type Client struct {
 }
 
 // NewSession creates an AWS session for RDS and returns an RDSClient
-func NewSession(c common.Account) Client {
-	log.Printf("Creating new session with key id %s in region %s", c.Akid, c.Region)
-	sess := session.Must(session.NewSession(&aws.Config{
-		Credentials: credentials.NewStaticCredentials(c.Akid, c.Secret, ""),
-		Region:      aws.String(c.Region),
-	}))
+func NewSession(c common.RdsAccount, sess *session.Session) *Client {
+	if sess == nil {
+		log.Printf("Creating new session with key id %s in region %s", c.Akid, c.Region)
+		sess = session.Must(session.NewSession(&aws.Config{
+			Credentials: credentials.NewStaticCredentials(c.Akid, c.Secret, ""),
+			Region:      aws.String(c.Region),
+		}))
+	}
 
-	return Client{
+	return &Client{
 		Service:                            rds.New(sess),
 		DefaultSubnetGroup:                 c.DefaultSubnetGroup,
 		DefaultDBParameterGroupName:        c.DefaultDBParameterGroupName,
