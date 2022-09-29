@@ -9,7 +9,7 @@ import (
 )
 
 type server struct {
-	accountsMap   map[string]common.AccountConfig
+	accountsMap   map[string]string
 	defaultConfig common.CommonConfig
 	org           string
 	session       *session.Session
@@ -23,13 +23,8 @@ func newServer(config common.Config) *server {
 		session.WithExternalID(config.Account.ExternalID),
 		session.WithExternalRoleName(config.Account.Role),
 	)
-	accountsMap := make(map[string]common.AccountConfig)
-	for accountName, rdsAcc := range config.Accounts {
-		accountsMap[accountName] = common.NewAccountConfig(rdsAcc, config.DefaultConfig)
-	}
-
 	return &server{
-		accountsMap:   accountsMap,
+		accountsMap:   config.AccountsMap,
 		defaultConfig: config.DefaultConfig,
 		org:           config.Org,
 		session:       &sess,
@@ -38,9 +33,9 @@ func newServer(config common.Config) *server {
 }
 
 // if we have an entry for the account name, return the associated account number
-func (s *server) mapAccountNumber(name string) common.AccountConfig {
+func (s *server) mapAccountNumber(name string) string {
 	if a, ok := s.accountsMap[name]; ok {
 		return a
 	}
-	return common.AccountConfig{AccountId: name, Config: s.defaultConfig}
+	return name
 }
