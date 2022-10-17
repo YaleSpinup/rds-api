@@ -15,7 +15,6 @@ type Config struct {
 	Account       Account
 	AccountsMap   map[string]string
 	DefaultConfig CommonConfig
-	Accounts      map[string]RdsAccount
 	Token         string
 	Org           string
 }
@@ -31,16 +30,6 @@ type Account struct {
 }
 
 type CommonConfig struct {
-	DefaultSubnetGroup                 string
-	DefaultDBParameterGroupName        map[string]string
-	DefaultDBClusterParameterGroupName map[string]string
-}
-
-// Account is the configuration for an individual account
-type RdsAccount struct {
-	Region                             string
-	Akid                               string
-	Secret                             string
 	DefaultSubnetGroup                 string
 	DefaultDBParameterGroupName        map[string]string
 	DefaultDBClusterParameterGroupName map[string]string

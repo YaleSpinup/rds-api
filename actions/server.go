@@ -12,6 +12,7 @@ type server struct {
 	accountsMap   map[string]string
 	defaultConfig common.CommonConfig
 	org           string
+	token         []byte
 	session       *session.Session
 	sessionCache  *cache.Cache
 }
@@ -27,6 +28,7 @@ func newServer(config common.Config) *server {
 		accountsMap:   config.AccountsMap,
 		defaultConfig: config.DefaultConfig,
 		org:           config.Org,
+		token:         []byte(config.Token),
 		session:       &sess,
 		sessionCache:  cache.New(600*time.Second, 900*time.Second),
 	}
