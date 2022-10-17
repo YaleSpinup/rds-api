@@ -11,6 +11,9 @@ import (
 	"github.com/YaleSpinup/rds-api/pkg/common"
 	"github.com/YaleSpinup/rds-api/pkg/rds"
 	"github.com/YaleSpinup/rds-api/rdsapi"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/envy"
 	paramlogger "github.com/gobuffalo/mw-paramlogger"
@@ -38,7 +41,7 @@ var (
 	Org string
 
 	// RDS is a global map of RDS clients
-	RDS = make(map[string]rds.Client)
+	RDS = make(map[string]*rds.Client)
 
 	// Version is the main version number
 	Version = rdsapi.Version
@@ -54,7 +57,7 @@ var (
 )
 
 type rdsOrchestrator struct {
-	client rds.Client
+	client *rds.Client
 }
 
 // App is where all routes and middleware for buffalo should be defined
@@ -94,8 +97,20 @@ func App() *buffalo.App {
 
 		// create a shared RDS session for each account
 		for account, c := range AppConfig.Accounts {
-			RDS[account] = rds.NewSession(c)
+			log.Printf("Creating new session with key id %s in region %s", c.Akid, c.Region)
+			sess := session.Must(session.NewSession(&aws.Config{
+				Credentials: credentials.NewStaticCredentials(c.Akid, c.Secret, ""),
+				Region:      aws.String(c.Region),
+			}))
+			ccfg := common.CommonConfig{
+				DefaultSubnetGroup:                 c.DefaultSubnetGroup,
+				DefaultDBParameterGroupName:        c.DefaultDBParameterGroupName,
+				DefaultDBClusterParameterGroupName: c.DefaultDBClusterParameterGroupName,
+			}
+			RDS[account] = rds.NewSession(sess, ccfg)
 		}
+
+		s := newServer(AppConfig)
 
 		app.GET("/v1/rds/ping", PingPong)
 		app.GET("/v1/rds/version", VersionHandler)
@@ -103,7 +118,7 @@ func App() *buffalo.App {
 		rdsV1API := app.Group("/v1/rds/{account}")
 		rdsV1API.Use(sharedTokenAuth([]byte(AppConfig.Token)))
 		rdsV1API.POST("/", DatabasesPost)
-		rdsV1API.GET("/", DatabasesList)
+		rdsV1API.GET("/", s.DatabasesList)
 		rdsV1API.GET("/{db}", DatabasesGet)
 		rdsV1API.PUT("/{db}", DatabasesPut)
 		rdsV1API.PUT("/{db}/power", DatabasesPutState)
