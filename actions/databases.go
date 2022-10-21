@@ -158,7 +158,7 @@ func (s *server) DatabasesPost(c buffalo.Context) error {
 	accountId := s.mapAccountNumber(c.Param("account"))
 
 	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
-	policy, err := generatePolicy("rds:DescribeDBClusters", "rds:DescribeDBSnapshots", "rds:RestoreDBClusterFromSnapshot", "rds:CreateDBInstance", "rds:CreateDBCluster", "rds:DeleteDBCluster")
+	policy, err := generatePolicy("rds:DescribeDBClusters", "rds:AddTagsToResource", "rds:DescribeDBSnapshots", "rds:RestoreDBClusterFromSnapshot", "rds:CreateDBInstance", "rds:CreateDBCluster", "rds:DeleteDBCluster")
 	if err != nil {
 		return handleError(c, err)
 	}
