@@ -1,9 +1,12 @@
 package actions
 
 import (
+	"fmt"
 	"log"
 	"strconv"
 
+	"github.com/YaleSpinup/apierror"
+	rdsapi "github.com/YaleSpinup/rds-api/pkg/rds"
 	"github.com/pkg/errors"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -13,7 +16,7 @@ import (
 )
 
 // SnapshotsPost creates a manual snapshot for a given database instance or cluster
-func SnapshotsPost(c buffalo.Context) error {
+func (s *server) SnapshotsPost(c buffalo.Context) error {
 	req := SnapshotCreateRequest{}
 	if err := c.Bind(&req); err != nil {
 		log.Println(err)
@@ -24,10 +27,26 @@ func SnapshotsPost(c buffalo.Context) error {
 		return c.Error(400, errors.New("Bad request: specify SnapshotIdentifier in request"))
 	}
 
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:CreateDBSnapshot", "rds:CreateDBClusterSnapshot")
+	if err != nil {
+		return handleError(c, err)
 	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
 	orch := &rdsOrchestrator{
 		client: rdsClient,
@@ -63,11 +82,27 @@ func SnapshotsPost(c buffalo.Context) error {
 }
 
 // SnapshotsList gets a list of snapshots for a given database instance or cluster
-func SnapshotsList(c buffalo.Context) error {
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+func (s *server) SnapshotsList(c buffalo.Context) error {
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DescribeDBClusterSnapshots", "rds:DescribeDBSnapshots")
+	if err != nil {
+		return handleError(c, err)
 	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
 	log.Printf("getting snapshots for %s", c.Param("db"))
 
@@ -105,11 +140,27 @@ func SnapshotsList(c buffalo.Context) error {
 }
 
 // SnapshotsGet returns information about a specific database snapshot
-func SnapshotsGet(c buffalo.Context) error {
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+func (s *server) SnapshotsGet(c buffalo.Context) error {
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DescribeDBClusterSnapshots", "rds:DescribeDBSnapshots")
+	if err != nil {
+		return handleError(c, err)
 	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
 	log.Printf("getting information about snapshot %s", c.Param("snap"))
 
@@ -162,11 +213,27 @@ func SnapshotsGet(c buffalo.Context) error {
 }
 
 // SnapshotsDelete deletes a specific database snapshot
-func SnapshotsDelete(c buffalo.Context) error {
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+func (s *server) SnapshotsDelete(c buffalo.Context) error {
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DeleteDBClusterSnapshot", "rds:DeleteDBSnapshot")
+	if err != nil {
+		return handleError(c, err)
 	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
 	orch := &rdsOrchestrator{
 		client: rdsClient,

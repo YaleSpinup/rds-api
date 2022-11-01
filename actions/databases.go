@@ -66,22 +66,34 @@ func (s *server) DatabasesList(c buffalo.Context) error {
 
 // DatabasesGet gets details about a specific database
 // If the `all=true` parameter is passed it will return a list of clusters in addition to instances.
-func DatabasesGet(c buffalo.Context) error {
+func (s *server) DatabasesGet(c buffalo.Context) error {
 	// if all param is given, we'll return information about both instances and clusters
 	// otherwise, only database instances will be searched
-	all := false
-	if b, err := strconv.ParseBool(c.Param("all")); err == nil {
-		all = b
+	all, _ := strconv.ParseBool(c.Param("all"))
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DescribeDBInstances")
+	if err != nil {
+		return handleError(c, err)
+	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
 	}
 
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
-	}
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
 	var clustersOutput *rds.DescribeDBClustersOutput
 	var instancesOutput *rds.DescribeDBInstancesOutput
-	var err error
+	
 	clusterNotFound := true
 
 	if all {
@@ -132,7 +144,7 @@ func DatabasesGet(c buffalo.Context) error {
 }
 
 // DatabasesPost creates a database in a given account
-func DatabasesPost(c buffalo.Context) error {
+func (s *server) DatabasesPost(c buffalo.Context) error {
 	req := DatabaseCreateRequest{}
 	if err := c.Bind(&req); err != nil {
 		log.Println(err)
@@ -143,17 +155,32 @@ func DatabasesPost(c buffalo.Context) error {
 		return c.Error(400, errors.New("Bad request: specify Cluster or Instance in request"))
 	}
 
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DescribeDBClusters", "rds:AddTagsToResource", "rds:DescribeDBSnapshots", "rds:RestoreDBClusterFromSnapshot", "rds:CreateDBInstance", "rds:CreateDBCluster", "rds:DeleteDBCluster")
+	if err != nil {
+		return handleError(c, err)
 	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
 	orch := &rdsOrchestrator{
 		client: rdsClient,
 	}
 
 	var resp *DatabaseResponse
-	var err error
 
 	if (req.Cluster != nil && req.Cluster.SnapshotIdentifier != nil) || (req.Instance != nil && req.Instance.SnapshotIdentifier != nil) {
 		// restoring database from snapshot
@@ -171,7 +198,7 @@ func DatabasesPost(c buffalo.Context) error {
 }
 
 // DatabasesPut modifies a database in a given account
-func DatabasesPut(c buffalo.Context) error {
+func (s *server) DatabasesPut(c buffalo.Context) error {
 	input := DatabaseModifyInput{}
 	if err := c.Bind(&input); err != nil {
 		log.Println(err)
@@ -186,10 +213,26 @@ func DatabasesPut(c buffalo.Context) error {
 		return c.Error(400, errors.New("Bad request: cannot specify both Cluster and Instance"))
 	}
 
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DescribeDBClusters", "rds:ModifyDBCluster", "rds:DescribeDBInstances", "rds:ModifyDBInstance", "rds:AddTagsToResource")
+	if err != nil {
+		return handleError(c, err)
 	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
 	orch := &rdsOrchestrator{
 		client: rdsClient,
@@ -204,17 +247,33 @@ func DatabasesPut(c buffalo.Context) error {
 }
 
 // DatabasesPutState stops or starts a database in a given account
-func DatabasesPutState(c buffalo.Context) error {
+func (s *server) DatabasesPutState(c buffalo.Context) error {
 	input := DatabaseStateInput{}
 	if err := c.Bind(&input); err != nil {
 		log.Println(err)
 		return c.Error(400, err)
 	}
 
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:StartDBCluster", "rds:StartDBInstance", "rds:StopDBCluster", "rds:StopDBInstance")
+	if err != nil {
+		return handleError(c, err)
 	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
 	id := c.Param("db")
 	if id == "" {
@@ -238,16 +297,32 @@ func DatabasesPutState(c buffalo.Context) error {
 }
 
 // DatabasesDelete deletes a database in a given account
-func DatabasesDelete(c buffalo.Context) error {
+func (s *server) DatabasesDelete(c buffalo.Context) error {
 	snapshot := false
 	if b, err := strconv.ParseBool(c.Param("snapshot")); err == nil {
 		snapshot = b
 	}
 
-	rdsClient, ok := RDS[c.Param("account")]
-	if !ok {
-		return c.Error(400, errors.New("Bad request: unknown account "+c.Param("account")))
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DescribeDBInstances", "rds:DeleteDBInstance", "rds:DeleteDBCluster")
+	if err != nil {
+		return handleError(c, err)
 	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
 	orch := &rdsOrchestrator{
 		client: rdsClient,

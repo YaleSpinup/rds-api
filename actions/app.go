@@ -11,9 +11,6 @@ import (
 	"github.com/YaleSpinup/rds-api/pkg/common"
 	"github.com/YaleSpinup/rds-api/pkg/rds"
 	"github.com/YaleSpinup/rds-api/rdsapi"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/gobuffalo/buffalo"
 	"github.com/gobuffalo/envy"
 	paramlogger "github.com/gobuffalo/mw-paramlogger"
@@ -34,14 +31,8 @@ var (
 	// ConfigFile is the name of the json config file
 	ConfigFile = "config/config.json"
 
-	// AppConfig holds the configuration information for the app
-	AppConfig common.Config
-
 	// The org for this instance of the app
 	Org string
-
-	// RDS is a global map of RDS clients
-	RDS = make(map[string]*rds.Client)
 
 	// Version is the main version number
 	Version = rdsapi.Version
@@ -88,45 +79,30 @@ func App() *buffalo.App {
 		}
 
 		// load json config
-		AppConfig, err := common.LoadConfig(ConfigFile)
+		appCfg, err := common.LoadConfig(ConfigFile)
 		if err != nil {
 			log.Fatalf("Failed to load config %s: %+v", ConfigFile, err)
 		}
 
-		Org = AppConfig.Org
+		Org = appCfg.Org
 
-		// create a shared RDS session for each account
-		for account, c := range AppConfig.Accounts {
-			log.Printf("Creating new session with key id %s in region %s", c.Akid, c.Region)
-			sess := session.Must(session.NewSession(&aws.Config{
-				Credentials: credentials.NewStaticCredentials(c.Akid, c.Secret, ""),
-				Region:      aws.String(c.Region),
-			}))
-			ccfg := common.CommonConfig{
-				DefaultSubnetGroup:                 c.DefaultSubnetGroup,
-				DefaultDBParameterGroupName:        c.DefaultDBParameterGroupName,
-				DefaultDBClusterParameterGroupName: c.DefaultDBClusterParameterGroupName,
-			}
-			RDS[account] = rds.NewSession(sess, ccfg)
-		}
-
-		s := newServer(AppConfig)
+		s := newServer(appCfg)
 
 		app.GET("/v1/rds/ping", PingPong)
 		app.GET("/v1/rds/version", VersionHandler)
 
 		rdsV1API := app.Group("/v1/rds/{account}")
-		rdsV1API.Use(sharedTokenAuth([]byte(AppConfig.Token)))
-		rdsV1API.POST("/", DatabasesPost)
+		rdsV1API.Use(s.authHandler)
+		rdsV1API.POST("/", s.DatabasesPost)
 		rdsV1API.GET("/", s.DatabasesList)
-		rdsV1API.GET("/{db}", DatabasesGet)
-		rdsV1API.PUT("/{db}", DatabasesPut)
-		rdsV1API.PUT("/{db}/power", DatabasesPutState)
-		rdsV1API.DELETE("/{db}", DatabasesDelete)
-		rdsV1API.POST("/{db}/snapshots", SnapshotsPost)
-		rdsV1API.GET("/{db}/snapshots", SnapshotsList)
-		rdsV1API.GET("/snapshots/{snap}", SnapshotsGet)
-		rdsV1API.DELETE("/snapshots/{snap}", SnapshotsDelete)
+		rdsV1API.GET("/{db}", s.DatabasesGet)
+		rdsV1API.PUT("/{db}", s.DatabasesPut)
+		rdsV1API.PUT("/{db}/power", s.DatabasesPutState)
+		rdsV1API.DELETE("/{db}", s.DatabasesDelete)
+		rdsV1API.POST("/{db}/snapshots", s.SnapshotsPost)
+		rdsV1API.GET("/{db}/snapshots", s.SnapshotsList)
+		rdsV1API.GET("/snapshots/{snap}", s.SnapshotsGet)
+		rdsV1API.DELETE("/snapshots/{snap}", s.SnapshotsDelete)
 
 		log.Printf("Started rds-api in org %s", Org)
 	}
@@ -134,23 +110,19 @@ func App() *buffalo.App {
 	return app
 }
 
-// sharedTokenAuth middleware validates the auth token
-func sharedTokenAuth(token []byte) buffalo.MiddlewareFunc {
-	return func(next buffalo.Handler) buffalo.Handler {
-		return func(c buffalo.Context) error {
-			htoken, ok := c.Request().Header["X-Auth-Token"]
-
-			if !ok || len(htoken) == 0 {
-				log.Println("Missing token header for request", c.Request().URL)
-				return c.Error(403, errors.New("Forbidden"))
-			}
-			if err := bcrypt.CompareHashAndPassword([]byte(htoken[0]), token); err != nil {
-				log.Println("Bad token for request", c.Request().URL)
-				return c.Error(403, errors.New("Forbidden"))
-			}
-
-			return next(c)
+// authHandler middleware validates the auth token
+func (s *server) authHandler(next buffalo.Handler) buffalo.Handler {
+	return func(c buffalo.Context) error {
+		htoken := c.Request().Header.Get("X-Auth-Token")
+		if htoken == "" {
+			log.Println("Missing token header for request", c.Request().URL)
+			return c.Error(403, errors.New("Forbidden"))
 		}
+		if err := bcrypt.CompareHashAndPassword([]byte(htoken), s.token); err != nil {
+			log.Println("Bad token for request", c.Request().URL)
+			return c.Error(403, errors.New("Forbidden"))
+		}
+		return next(c)
 	}
 }
 
