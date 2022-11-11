@@ -87,6 +87,7 @@ func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreate
 			EnableCloudwatchLogsExports: req.Cluster.EnableCloudwatchLogsExports,
 			Engine:                      snapshot.Engine,
 			EngineMode:                  snapshot.EngineMode,
+			EngineVersion:               snapshot.EngineVersion,
 			Port:                        req.Cluster.Port,
 			SnapshotIdentifier:          aws.String(snapshotId),
 			Tags:                        toRDSTags(req.Cluster.Tags),
