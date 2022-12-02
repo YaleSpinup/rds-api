@@ -101,7 +101,7 @@ func App() *buffalo.App {
 		rdsV1API.DELETE("/{db}", s.DatabasesDelete)
 		rdsV1API.POST("/{db}/snapshots", s.SnapshotsPost)
 		rdsV1API.GET("/{db}/snapshots", s.SnapshotsList)
-		rdsV1API.GET("/{db}/snapshots", s.SnapshotsVersionList)
+		rdsV1API.GET("/snapshots/{snap}/versions", s.SnapshotsVersionList)
 		rdsV1API.GET("/snapshots/{snap}", s.SnapshotsGet)
 		rdsV1API.DELETE("/snapshots/{snap}", s.SnapshotsDelete)
 
