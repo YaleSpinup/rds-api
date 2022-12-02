@@ -10,7 +10,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/rds"
 	"github.com/gobuffalo/buffalo"
 )
@@ -142,7 +141,7 @@ func (s *server) SnapshotsList(c buffalo.Context) error {
 // SnapshotsGet returns information about a specific database snapshot
 func (s *server) SnapshotsGet(c buffalo.Context) error {
 	accountId := s.mapAccountNumber(c.Param("account"))
-
+	snapshotId := c.Param("snap")
 	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
 	policy, err := generatePolicy("rds:DescribeDBClusterSnapshots", "rds:DescribeDBSnapshots")
 	if err != nil {
@@ -162,43 +161,20 @@ func (s *server) SnapshotsGet(c buffalo.Context) error {
 
 	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
-	log.Printf("getting information about snapshot %s", c.Param("snap"))
+	log.Printf("getting information about snapshot %s", snapshotId)
 
-	var clusterSnapshot *rds.DBClusterSnapshot
-	var instanceSnapshot *rds.DBSnapshot
-
-	clusterSnapshotsOutput, err := rdsClient.Service.DescribeDBClusterSnapshotsWithContext(c, &rds.DescribeDBClusterSnapshotsInput{
-		DBClusterSnapshotIdentifier: aws.String(c.Param("snap")),
-	})
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() != rds.ErrCodeDBClusterSnapshotNotFoundFault {
-				return c.Error(400, aerr)
-			}
-		}
-	} else if len(clusterSnapshotsOutput.DBClusterSnapshots) > 1 {
-		return c.Error(500, errors.New("Unexpected number of snapshots"))
-	} else {
-		clusterSnapshot = clusterSnapshotsOutput.DBClusterSnapshots[0]
+	clusterSnapshot, err := rdsClient.DescribeDBClusterSnaphot(c, snapshotId)
+	if err != nil && !isNotFoundError(err) {
+		return handleError(c, err)
 	}
 
-	instanceSnapshotsOutput, err := rdsClient.Service.DescribeDBSnapshotsWithContext(c, &rds.DescribeDBSnapshotsInput{
-		DBSnapshotIdentifier: aws.String(c.Param("snap")),
-	})
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
-			if aerr.Code() != rds.ErrCodeDBSnapshotNotFoundFault {
-				return c.Error(400, aerr)
-			}
-		}
-	} else if len(instanceSnapshotsOutput.DBSnapshots) > 1 {
-		return c.Error(500, errors.New("Unexpected number of snapshots"))
-	} else {
-		instanceSnapshot = instanceSnapshotsOutput.DBSnapshots[0]
+	instanceSnapshot, err := rdsClient.DescribeDBSnaphot(c, snapshotId)
+	if err != nil && !isNotFoundError(err) {
+		return handleError(c, err)
 	}
 
 	if clusterSnapshot == nil && instanceSnapshot == nil {
-		return c.Error(404, errors.New("Snapshot not found"))
+		return c.Error(404, errors.New("snapshot not found"))
 	}
 
 	output := struct {
@@ -266,4 +242,46 @@ func (s *server) SnapshotsDelete(c buffalo.Context) error {
 	}
 
 	return c.Render(200, r.JSON(output))
+}
+
+func (s *server) SnapshotsVersionList(c buffalo.Context) error {
+	accountId := s.mapAccountNumber(c.Param("account"))
+	snapshotId := c.Param("snap")
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DescribeDBEngineVersions")
+	if err != nil {
+		return handleError(c, err)
+	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
+
+	sinfo, err := rdsClient.GetSnapshotInfo(c, snapshotId)
+	if err != nil {
+		return handleError(c, err)
+	}
+
+	dbVersions, err := rdsClient.DescribeDBEngineVersions(c, sinfo.Engine, sinfo.EngineVersion)
+	if err != nil {
+		return handleError(c, err)
+	}
+	return c.Render(200, r.JSON(dbVersions))
+}
+
+func isNotFoundError(err error) bool {
+	if rerr, ok := err.(apierror.Error); ok {
+		return rerr.Code == apierror.ErrNotFound
+	}
+	return false
 }
