@@ -22,8 +22,7 @@ type SnapshotCreateRequest struct {
 }
 
 type SnapshotModifyRequest struct {
-	SnapshotIdentifier *string
-	EngineVersion *string
+	EngineVersion string
 }
 
 // CreateDBInstanceInput is the input for creating a new database instance
