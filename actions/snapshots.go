@@ -267,3 +267,45 @@ func (s *server) SnapshotsDelete(c buffalo.Context) error {
 
 	return c.Render(200, r.JSON(output))
 }
+
+func (s *server) SnapshotModify(c buffalo.Context) error {
+	req := SnapshotModifyRequest{}
+	if err := c.Bind(&req); err != nil {
+		log.Println(err)
+		return c.Error(400, err)
+	}
+
+	// if req.SnapshotIdentifier == "" {
+	// 	return c.Error(400, errors.New("Bad request: SnapshotIdentifier notin request"))
+	// }
+
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:ModifyDBSnapshot")
+	if err != nil {
+		return handleError(c, err)
+	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
+
+	var resp *rds.DBSnapshot
+
+	resp, err := rdsClient.ModifyDBSnapshot(c, &req.SnapshotIdentifier, &req.EngineVersion)
+	if err != nil {
+		return handleError(c, err)
+	}
+
+	return c.Render(2010, r.JSON(resp))
+}
