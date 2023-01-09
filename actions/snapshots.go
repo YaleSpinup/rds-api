@@ -277,7 +277,7 @@ func (s *server) SnapshotsVersionList(c buffalo.Context) error {
 		return handleError(c, err)
 	}
 
-	return c.Render(2010, r.JSON(dbVersions))
+	return c.Render(200, r.JSON(dbVersions))
 }
 
 func isNotFoundError(err error) bool {
