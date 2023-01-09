@@ -300,5 +300,5 @@ func (s *server) SnapshotModify(c buffalo.Context) error {
 		return handleError(c, err)
 	}
 
-	return c.Render(2010, r.JSON(resp))
+	return c.Render(200, r.JSON(resp))
 }
