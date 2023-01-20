@@ -21,6 +21,7 @@ func (r *Client) DescribeDBClusterSnaphot(ctx buffalo.Context, snapshotId string
 				return nil, apierror.New(apierror.ErrNotFound, msg, err)
 			}
 		}
+		return nil, err
 	}
 	if len(clusterSnapshotsOutput.DBClusterSnapshots) != 1 {
 		msg := fmt.Sprintf("expected 1 snapshot but found %d, snapshot id: %s", len(clusterSnapshotsOutput.DBClusterSnapshots), snapshotId)
