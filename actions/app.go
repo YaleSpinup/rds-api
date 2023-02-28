@@ -104,6 +104,7 @@ func App() *buffalo.App {
 		rdsV1API.GET("/snapshots/{snap}/versions", s.SnapshotsVersionList)
 		rdsV1API.GET("/snapshots/{snap}", s.SnapshotsGet)
 		rdsV1API.DELETE("/snapshots/{snap}", s.SnapshotsDelete)
+		rdsV1API.POST("/snapshots/{snap}", s.SnapshotModify)
 
 		log.Printf("Started rds-api in org %s", Org)
 	}

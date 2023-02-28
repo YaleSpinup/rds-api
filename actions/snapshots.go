@@ -280,6 +280,41 @@ func (s *server) SnapshotsVersionList(c buffalo.Context) error {
 	return c.Render(200, r.JSON(dbVersions))
 }
 
+func (s *server) SnapshotModify(c buffalo.Context) error {
+	req := SnapshotModifyRequest{}
+	if err := c.Bind(&req); err != nil {
+		return c.Error(400, err)
+	}
+
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:ModifyDBSnapshot")
+	if err != nil {
+		return handleError(c, err)
+	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
+
+	resp, err := rdsClient.ModifyDBSnapshot(c,  c.Param("snap"), req.EngineVersion)
+	if err != nil {
+		return handleError(c, err)
+	}
+
+	return c.Render(200, r.JSON(resp))
+}
+
 func isNotFoundError(err error) bool {
 	if rerr, ok := err.(apierror.Error); ok {
 		return rerr.Code == apierror.ErrNotFound
