@@ -7,6 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/rds"
+
+	// "github.com/davecgh/go-spew/spew"
 	"github.com/gobuffalo/buffalo"
 )
 
@@ -25,7 +27,7 @@ func (r *Client) DescribeDBClusterSnaphot(ctx buffalo.Context, snapshotId string
 	}
 	if len(clusterSnapshotsOutput.DBClusterSnapshots) != 1 {
 		msg := fmt.Sprintf("expected 1 snapshot but found %d, snapshot id: %s", len(clusterSnapshotsOutput.DBClusterSnapshots), snapshotId)
-		return nil, apierror.New(apierror.ErrInternalError, msg, err)
+		return nil, apierror.New(apierror.ErrNotFound, msg, err)
 	}
 	return clusterSnapshotsOutput.DBClusterSnapshots[0], nil
 }
@@ -44,7 +46,7 @@ func (r *Client) DescribeDBSnaphot(ctx buffalo.Context, snapshotId string) (*rds
 	}
 	if len(instanceSnapshotsOutput.DBSnapshots) != 1 {
 		msg := fmt.Sprintf("expected 1 snapshot but found %d, snapshot id: %s", len(instanceSnapshotsOutput.DBSnapshots), snapshotId)
-		return nil, apierror.New(apierror.ErrInternalError, msg, err)
+		return nil, apierror.New(apierror.ErrNotFound, msg, err)
 	}
 	return instanceSnapshotsOutput.DBSnapshots[0], nil
 }
