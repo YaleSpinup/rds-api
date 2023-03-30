@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"strings"
 
 	"github.com/YaleSpinup/apierror"
 	rdsapi "github.com/YaleSpinup/rds-api/pkg/rds"
@@ -307,12 +308,87 @@ func (s *server) SnapshotModify(c buffalo.Context) error {
 
 	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
 
-	resp, err := rdsClient.ModifyDBSnapshot(c,  c.Param("snap"), req.EngineVersion)
+	resp, err := rdsClient.ModifyDBSnapshot(c, c.Param("snap"), req.EngineVersion)
 	if err != nil {
 		return handleError(c, err)
 	}
 
 	return c.Render(200, r.JSON(resp))
+}
+
+// SnapshotsDeleteNonProd deletes all the non production snapshot i.e(anything not labeled final-spin-foo).
+func (s *server) SnapshotsDeleteNonProd(c buffalo.Context) error {
+	accountId := s.mapAccountNumber(c.Param("account"))
+
+	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
+	policy, err := generatePolicy("rds:DeleteDBClusterSnapshot", "rds:DeleteDBSnapshot")
+	if err != nil {
+		return handleError(c, err)
+	}
+	session, err := s.assumeRole(
+		c,
+		s.session.ExternalID,
+		role,
+		policy,
+		"arn:aws:iam::aws:policy/AmazonRDSReadOnlyAccess",
+	)
+	if err != nil {
+		msg := fmt.Sprintf("failed to assume role in account: %s", accountId)
+		return handleError(c, apierror.New(apierror.ErrForbidden, msg, err))
+	}
+
+	rdsClient := rdsapi.NewSession(session.Session, s.defaultConfig)
+
+	orch := &rdsOrchestrator{
+		client: rdsClient,
+	}
+
+	clusterSnapshotsOutput, err := rdsClient.Service.DescribeDBClusterSnapshotsWithContext(c, &rds.DescribeDBClusterSnapshotsInput{})
+	if err != nil {
+		return handleError(c, err)
+	}
+
+	instanceSnapshotsOutput, err := rdsClient.Service.DescribeDBSnapshotsWithContext(c, &rds.DescribeDBSnapshotsInput{})
+	if err != nil {
+		return handleError(c, err)
+	}
+
+	output := struct {
+		DBClusterSnapshot []*rds.DBClusterSnapshot `json:"DBClusterSnapshot,omitempty"`
+		DBSnapshot        []*rds.DBSnapshot        `json:"DBSnapshot,omitempty"`
+	}{}
+
+	if clusterSnapshotsOutput.DBClusterSnapshots != nil {
+		for _, DBClusclusterSnapshot := range clusterSnapshotsOutput.DBClusterSnapshots {
+			if !strings.Contains(*DBClusclusterSnapshot.DBClusterSnapshotIdentifier, "final-spin") {
+				clusterSnapshot, err := orch.clusterSnapshotDelete(c, *DBClusclusterSnapshot.DBClusterSnapshotIdentifier)
+				if err != nil {
+					return err
+				}
+				output.DBClusterSnapshot = append(output.DBClusterSnapshot, clusterSnapshot)
+			}
+
+		}
+	}
+
+	if instanceSnapshotsOutput.DBSnapshots != nil {
+		for _, DBSnapshot := range instanceSnapshotsOutput.DBSnapshots {
+			if !strings.Contains(*DBSnapshot.DBSnapshotIdentifier, "final-spin") {
+				instanceSnapshot, err := orch.instanceSnapshotDelete(c, *DBSnapshot.DBSnapshotIdentifier)
+				if err != nil {
+					return err
+				}
+				output.DBSnapshot = append(output.DBSnapshot, instanceSnapshot)
+			}
+
+		}
+	}
+
+	if output.DBClusterSnapshot == nil && output.DBSnapshot == nil {
+		return c.Error(404, errors.New("Snapshot not found"))
+	}
+
+	return c.Render(200, r.JSON(output))
 }
 
 func isNotFoundError(err error) bool {
