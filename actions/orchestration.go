@@ -363,6 +363,11 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 			VpcSecurityGroupIds:         req.Instance.VpcSecurityGroupIds,
 		}
 
+		// Check for LicenseModel - Required for Microsoft SQL Server Standard
+		if req.Instance.LicenseModel != nil {
+			input.LicenseModel = req.Instance.LicenseModel
+		}
+
 		if instanceOutput, err = o.client.Service.CreateDBInstanceWithContext(c, input); err != nil {
 			if req.Cluster != nil {
 				// if this instance was in a new cluster, delete the cluster

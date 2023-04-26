@@ -38,6 +38,7 @@ type CreateDBInstanceInput struct {
 	EnableCloudwatchLogsExports []*string
 	Engine                      *string
 	EngineVersion               *string
+	LicenseModel                *string
 	MasterUserPassword          *string
 	MasterUsername              *string
 	MultiAZ                     *bool
