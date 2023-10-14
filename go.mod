@@ -3,8 +3,8 @@ module github.com/YaleSpinup/rds-api
 go 1.18
 
 require (
-	github.com/YaleSpinup/apierror v0.1.0
-	github.com/aws/aws-sdk-go v1.44.72
+	github.com/YaleSpinup/apierror v0.1.1
+	github.com/aws/aws-sdk-go v1.45.25
 	github.com/gobuffalo/buffalo v1.1.0
 	github.com/gobuffalo/envy v1.10.2
 	github.com/gobuffalo/mw-paramlogger v1.0.2
@@ -13,14 +13,14 @@ require (
 	github.com/gobuffalo/x v0.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.10.1
-	github.com/sirupsen/logrus v1.9.0
+	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/crypto v0.14.0
 )
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/Masterminds/semver/v3 v3.1.1 // indirect
-	github.com/YaleSpinup/aws-go v0.2.0
+	github.com/YaleSpinup/aws-go v0.2.3
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
