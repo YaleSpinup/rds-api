@@ -78,6 +78,10 @@ func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreate
 				req.Cluster.DBClusterParameterGroupName = aws.String(cPg)
 			}
 		}
+		engineVersion := req.Cluster.EngineVersion
+		if aws.StringValue(engineVersion) == "" {
+			engineVersion = snapshot.EngineVersion
+		}
 
 		input := &rds.RestoreDBClusterFromSnapshotInput{
 			CopyTagsToSnapshot:          aws.Bool(true),
@@ -87,7 +91,7 @@ func (o *rdsOrchestrator) databaseRestore(c buffalo.Context, req *DatabaseCreate
 			EnableCloudwatchLogsExports: req.Cluster.EnableCloudwatchLogsExports,
 			Engine:                      snapshot.Engine,
 			EngineMode:                  snapshot.EngineMode,
-			EngineVersion:               snapshot.EngineVersion,
+			EngineVersion:               engineVersion,
 			Port:                        req.Cluster.Port,
 			SnapshotIdentifier:          aws.String(snapshotId),
 			Tags:                        toRDSTags(req.Cluster.Tags),
@@ -504,7 +508,9 @@ func (o *rdsOrchestrator) databaseModify(c buffalo.Context, id string, input *Da
 
 // databaseDelete deletes a database
 // It will delete the database instance with the given {db} name and will also delete the associated cluster
-//  if the instance belongs to a cluster and is the last remaining member.
+//
+//	if the instance belongs to a cluster and is the last remaining member.
+//
 // If snapshot is true, it will create a final snapshot of the instance/cluster.
 func (o *rdsOrchestrator) databaseDelete(c buffalo.Context, id string, snapshot bool) (*DatabaseResponse, error) {
 	log.Printf("deleting database %s (snapshot: %t)", id, snapshot)
