@@ -95,6 +95,7 @@ func App() *buffalo.App {
 		rdsV1API.Use(s.authHandler)
 		rdsV1API.POST("/", s.DatabasesPost)
 		rdsV1API.GET("/", s.DatabasesList)
+		rdsV1API.DELETE("/snapshots", s.SnapshotsDeleteNonProd)
 		rdsV1API.GET("/{db}", s.DatabasesGet)
 		rdsV1API.PUT("/{db}", s.DatabasesPut)
 		rdsV1API.PUT("/{db}/power", s.DatabasesPutState)
