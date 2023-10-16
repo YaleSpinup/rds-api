@@ -3,7 +3,7 @@ module github.com/YaleSpinup/rds-api
 go 1.18
 
 require (
-	github.com/YaleSpinup/apierror v0.1.1
+	github.com/YaleSpinup/apierror v0.1.2
 	github.com/aws/aws-sdk-go v1.45.25
 	github.com/gobuffalo/buffalo v1.1.0
 	github.com/gobuffalo/envy v1.10.2
