@@ -3,8 +3,8 @@ module github.com/YaleSpinup/rds-api
 go 1.21
 
 require (
-	github.com/YaleSpinup/apierror v0.1.2
-	github.com/aws/aws-sdk-go v1.45.25
+	github.com/YaleSpinup/apierror v0.1.5
+	github.com/aws/aws-sdk-go v1.47.9
 	github.com/gobuffalo/buffalo v1.1.0
 	github.com/gobuffalo/envy v1.10.2
 	github.com/gobuffalo/mw-paramlogger v1.0.2
@@ -25,7 +25,7 @@ require (
 require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
-	github.com/YaleSpinup/aws-go v0.2.3
+	github.com/YaleSpinup/aws-go v0.2.5
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -94,7 +94,7 @@ require (
 	github.com/stretchr/testify v1.8.4 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.4.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
