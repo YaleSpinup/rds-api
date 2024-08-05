@@ -4,7 +4,7 @@
     "externalId": "{{ .external_id }}",
     "region": "{{ .region }}",
     "role": "{{ .role }}",
-    "secret": "{{ secret }}"
+    "secret": "{{ .secret }}"
   },
   "accountsMap": {
     "spinup": "{{ .spinup_account_id }}",
