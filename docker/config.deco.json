@@ -6,6 +6,42 @@
     "role": "{{ .role }}",
     "secret": "{{ .secret }}"
   },
+  "accounts": {
+    "spinup": {
+      "akid": "{{ .spinup_account_akid }}",
+      "defaultDBClusterParameterGroupName": {
+        "aurora-mysql5.7": "spinup-aurora-mysql57",
+        "aurora-mysql8.0": "spinup-aurora-mysql80"
+      },
+      "defaultDBParameterGroupName": {
+        "postgres10": "spinup-postgres10",
+        "postgres11": "spinup-postgres11",
+        "postgres12": "spinup-postgres12",
+        "postgres9.6": "spinup-postgres96",
+        "sqlserver-ex-14.0": "spinup-sqlserver-ex-14",
+        "sqlserver-se-14.0": "spinup-sqlserver-se-14"
+      },
+      "defaultSubnetGroup": "default-all-subnets",
+      "region": "{{ .spinup_account_region }}",
+      "secret": "{{ .spinup_account_secret }}"
+    },
+    "spinupsec": {
+      "akid": "{{ .spinupsec_account_akid }}",
+      "defaultDBClusterParameterGroupName": {
+        "aurora-mysql5.7": "spinup-aurora-mysql57",
+        "aurora-mysql8.0": "spinup-aurora-mysql80"
+      },
+      "defaultDBParameterGroupName": {
+        "postgres10": "spinup-postgres10",
+        "postgres11": "spinup-postgres11",
+        "postgres12": "spinup-postgres12",
+        "postgres9.6": "spinup-postgres96"
+      },
+      "defaultSubnetGroup": "default-all-subnets",
+      "region": "{{ .spinupsec_account_region }}",
+      "secret": "{{ .spinupsec_account_secret }}"
+    }
+  },
   "accountsMap": {
     "spinup": "{{ .spinup_account_id }}",
     "spinupsec": "{{ .spinupsec_account_id }}"
