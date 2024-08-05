@@ -35,20 +35,29 @@ WORKDIR /app
 COPY go.mod .
 COPY go.sum .
 RUN go mod download
-ADD . .
+COPY . .
 RUN go version
 RUN buffalo build --static -o /bin/api --ldflags "-X github.com/YaleSpinup/rds-api/rdsapi.Version=$version -X github.com/YaleSpinup/rds-api/rdsapi.VersionPrerelease=$prerelease -X github.com/YaleSpinup/rds-api/rdsapi.GitHash=$githash -X github.com/YaleSpinup/rds-api/rdsapi.BuildStamp=$buildstamp"
 
 
-FROM python:3-alpine
-RUN apk add --no-cache bash ca-certificates && \
-    pip3 install awscli --upgrade && \
-    aws --version
+FROM alpine
 
-WORKDIR /app/
+WORKDIR /app
+COPY --from=builder /bin/api /app/api
+RUN chmod 555 /app/api
 
-COPY --from=builder /bin/api ./
-COPY docker/import_config.sh ./
+RUN apk add --no-cache bash ca-certificates
+
+# Install Deco
+ARG DECO_VERSION=1.4.1
+ARG DECO_OS=linux
+ARG DECO_ARCH=amd64
+ADD https://github.com/YaleUniversity/deco/releases/download/v${DECO_VERSION}/deco_${DECO_VERSION}_${DECO_OS}_${DECO_ARCH}.tar.gz /usr/local/bin/deco.tar.gz
+RUN cd /usr/local/bin && tar -zxvf deco.tar.gz && rm -f deco.tar.gz && chmod 555 deco && /usr/local/bin/deco version
+
+COPY docker/*_config.sh /app
+COPY docker/config.deco.json /app/config/config.json
+RUN chmod 600 /app/config/config.json
 
 ENV GO_ENV=production
 ENV PORT=8080
@@ -58,4 +67,4 @@ EXPOSE 8080
 RUN chown -R nobody:nogroup .
 USER nobody
 
-CMD ./import_config.sh && ./api
+CMD /app/import_config.sh && /app/api -config /app/config/config.json
