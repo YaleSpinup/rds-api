@@ -40,13 +40,12 @@ RUN go version
 RUN buffalo build --static -o /bin/api --ldflags "-X github.com/YaleSpinup/rds-api/rdsapi.Version=$version -X github.com/YaleSpinup/rds-api/rdsapi.VersionPrerelease=$prerelease -X github.com/YaleSpinup/rds-api/rdsapi.GitHash=$githash -X github.com/YaleSpinup/rds-api/rdsapi.BuildStamp=$buildstamp"
 
 
-FROM alpine
+FROM python:3-alpine
 RUN apk add --no-cache bash ca-certificates
 
 WORKDIR /app/
 
 COPY --from=builder /bin/api ./
-RUN chmod 555 ./api
 
 # Install Deco
 ARG DECO_VERSION=1.4.1
@@ -55,9 +54,8 @@ ARG DECO_ARCH=amd64
 ADD https://github.com/YaleUniversity/deco/releases/download/v${DECO_VERSION}/deco_${DECO_VERSION}_${DECO_OS}_${DECO_ARCH}.tar.gz /usr/local/bin/deco.tar.gz
 RUN cd /usr/local/bin && tar -zxvf deco.tar.gz && rm -f deco.tar.gz && chmod 555 deco && /usr/local/bin/deco version
 
-COPY docker/*_config.sh ./
+COPY docker/import_config.sh ./
 COPY docker/config.deco.json ./config/config.json
-RUN chmod 600 ./config/config.json
 
 ENV GO_ENV=production
 ENV PORT=8080
@@ -67,4 +65,4 @@ EXPOSE 8080
 RUN chown -R nobody:nogroup .
 USER nobody
 
-CMD ./import_config.sh && ./api -config ./config/config.json
+CMD ./import_config.sh && ./api
