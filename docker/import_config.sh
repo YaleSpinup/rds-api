@@ -1,17 +1,17 @@
 #!/bin/bash
 # Container runtime configuration script
-# Gets encrypted config file from SSM parameter store
+# Gets secrets config file from SSM parameter store and uses Deco to substitute parameter values
 # This script expects SSMPATH env variable with the full SSMPATH path to the encrypted config file
 
 if [ -n "$SSMPATH" ]; then
   echo "Getting config file from SSM Parameter Store (${SSMPATH}) ..."
-  aws --version
+  deco version
   if [[ $? -ne 0 ]]; then
-    echo "ERROR: awscli not found!"
+    echo "ERROR: deco not found!"
     exit 1
   fi
-  mkdir config
-  aws --region us-east-1 ssm get-parameter --name "${SSMPATH}" --with-decryption --output text --query "Parameter.Value" | base64 -d > config/config.json
+  deco validate -e ssm://${SSMPATH} || exit 1
+  deco run -e ssm://${SSMPATH}
 else
   echo "ERROR: SSMPATH variable not set!"
   exit 1

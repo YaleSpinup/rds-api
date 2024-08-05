@@ -1,0 +1,33 @@
+{
+  "account": {
+    "akid": "{{ .akid }}",
+    "externalId": "{{ .external_id }}",
+    "region": "{{ .region }}",
+    "role": "{{ .role }}",
+    "secret": "{{ .secret }}"
+  },
+  "accountsMap": {
+    "spinup": "{{ .spinup_account_id }}",
+    "spinupsec": "{{ .spinupsec_account_id }}"
+  },
+  "defaultConfig": {
+    "defaultDBClusterParameterGroupName": {
+      "aurora-mysql5.7": "spinup-aurora-mysql57",
+      "aurora-mysql8.0": "spinup-aurora-mysql80",
+      "aurora5.6": "spinup-aurora56"
+    },
+    "defaultDBParameterGroupName": {
+      "postgres10": "spinup-postgres10",
+      "postgres11": "spinup-postgres11",
+      "postgres12": "spinup-postgres12",
+      "postgres9.6": "spinup-postgres96",
+      "sqlserver-ex-14.0": "spinup-sqlserver-ex-14",
+      "sqlserver-ex-15.0": "spinup-sqlserver-ex-15",
+      "sqlserver-se-14.0": "spinup-sqlserver-se-14",
+      "sqlserver-se-15.0": "spinup-sqlserver-se-15"
+    },
+    "defaultSubnetGroup": "default-all-subnets"
+  },
+  "org": "{{ .org }}",
+  "token": "{{ .token }}"
+}
