@@ -298,6 +298,7 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 			VpcSecurityGroupIds:         req.Cluster.VpcSecurityGroupIds,
 		}
 
+		// Handle Serverless V1
 		if req.Cluster.ScalingConfiguration != nil {
 			input.ScalingConfiguration = &rds.ScalingConfiguration{
 				AutoPause:             req.Cluster.ScalingConfiguration.AutoPause,
@@ -305,6 +306,14 @@ func (o *rdsOrchestrator) databaseCreate(c buffalo.Context, req *DatabaseCreateR
 				MinCapacity:           req.Cluster.ScalingConfiguration.MinCapacity,
 				SecondsUntilAutoPause: req.Cluster.ScalingConfiguration.SecondsUntilAutoPause,
 				TimeoutAction:         req.Cluster.ScalingConfiguration.TimeoutAction,
+			}
+		}
+
+		// Handle Serverless V2
+		if req.Cluster.ServerlessV2ScalingConfiguration != nil {
+			input.ServerlessV2ScalingConfiguration = &rds.ServerlessV2ScalingConfiguration{
+				MaxCapacity: req.Cluster.ServerlessV2ScalingConfiguration.MaxCapacity,
+				MinCapacity: req.Cluster.ServerlessV2ScalingConfiguration.MinCapacity,
 			}
 		}
 
