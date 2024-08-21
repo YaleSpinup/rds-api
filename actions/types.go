@@ -52,22 +52,23 @@ type CreateDBInstanceInput struct {
 // CreateDBClusterInput is the input for creating a new database cluster
 // based on https://docs.aws.amazon.com/sdk-for-go/api/service/rds/#CreateDBClusterInput
 type CreateDBClusterInput struct {
-	BackupRetentionPeriod       *int64
-	DBClusterIdentifier         *string
-	DBClusterParameterGroupName *string
-	DBSubnetGroupName           *string
-	EnableCloudwatchLogsExports []*string
-	Engine                      *string
-	EngineMode                  *string
-	EngineVersion               *string
-	MasterUserPassword          *string
-	MasterUsername              *string
-	Port                        *int64
-	ScalingConfiguration        *ScalingConfiguration
-	SnapshotIdentifier          *string
-	StorageEncrypted            *bool
-	Tags                        []*Tag
-	VpcSecurityGroupIds         []*string
+	BackupRetentionPeriod            *int64
+	DBClusterIdentifier              *string
+	DBClusterParameterGroupName      *string
+	DBSubnetGroupName                *string
+	EnableCloudwatchLogsExports      []*string
+	Engine                           *string
+	EngineMode                       *string
+	EngineVersion                    *string
+	MasterUserPassword               *string
+	MasterUsername                   *string
+	Port                             *int64
+	ScalingConfiguration             *ScalingConfiguration
+	ServerlessV2ScalingConfiguration *ServerlessV2ScalingConfiguration
+	SnapshotIdentifier               *string
+	StorageEncrypted                 *bool
+	Tags                             []*Tag
+	VpcSecurityGroupIds              []*string
 }
 
 type ScalingConfiguration struct {
@@ -76,6 +77,11 @@ type ScalingConfiguration struct {
 	MinCapacity           *int64
 	SecondsUntilAutoPause *int64
 	TimeoutAction         *string
+}
+
+type ServerlessV2ScalingConfiguration struct {
+	MaxCapacity *float64
+	MinCapacity *float64
 }
 
 type Tag struct {
