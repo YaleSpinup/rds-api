@@ -1,4 +1,4 @@
-FROM golang:1.21.3-alpine as gobuff
+FROM golang:1.23.4-alpine as gobuff
 
 EXPOSE 3000
 
