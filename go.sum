@@ -63,8 +63,8 @@ github.com/Shopify/toxiproxy v2.1.4+incompatible/go.mod h1:OXgGpZ6Cli1/URJOF1DMx
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=
 github.com/YaleSpinup/apierror v0.1.5 h1:ZW59fFo+bO30GpQ3TvGNBlY7kdX8L9KIEkaztsKnwiY=
 github.com/YaleSpinup/apierror v0.1.5/go.mod h1:u2smW7kQNefbVbBpNNvHQj9TjLZdVC+fKxwKNtLIhb4=
-github.com/YaleSpinup/aws-go v0.2.3 h1:5k28oLcZ7N0I03pxasOBvWG5HSyhxdgWRBajE02Dt4o=
-github.com/YaleSpinup/aws-go v0.2.3/go.mod h1:sAHykjX3XIhS/Ff+cj7duydbHpZXt3iSpbfXgjU5XuM=
+github.com/YaleSpinup/aws-go v0.2.5 h1:FkTCxw2lWKU2x5PUmPq/v+1R9jaekR9LhkuilbNnXGw=
+github.com/YaleSpinup/aws-go v0.2.5/go.mod h1:ICZ44nNZzu0ii+UdiC0T4/8+mxROh+UjWztl1SCoXlI=
 github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5/go.mod h1:SkGFH1ia65gfNATL8TAiHDNxPzPdmEL5uirI2Uyuz6c=
 github.com/ajg/form v0.0.0-20160822230020-523a5da1a92f/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY=
 github.com/ajg/form v1.5.1/go.mod h1:uL1WgH+h2mgNtvBq0339dVnzXdBETtL2LeUXaIv25UY=
