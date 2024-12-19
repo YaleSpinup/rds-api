@@ -3,7 +3,7 @@ module github.com/YaleSpinup/rds-api
 go 1.21
 
 require (
-  github.com/YaleSpinup/apierror v0.1.5
+	github.com/YaleSpinup/apierror v0.1.5
 	github.com/aws/aws-sdk-go v1.50.11
 	github.com/gobuffalo/buffalo v1.1.0
 	github.com/gobuffalo/envy v1.10.2
@@ -25,7 +25,7 @@ require (
 require (
 	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
-	github.com/YaleSpinup/aws-go v0.2.3
+	github.com/YaleSpinup/aws-go v0.2.5
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
