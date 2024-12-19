@@ -1,4 +1,4 @@
-FROM golang:1.21.3-alpine as gobuff
+FROM golang:1.21.3-alpine AS gobuff
 
 EXPOSE 3000
 
@@ -23,7 +23,7 @@ RUN go install github.com/gobuffalo/buffalo-pop/v3@latest
 RUN mkdir /src
 WORKDIR /src
 
-FROM gobuff as builder
+FROM gobuff AS builder
 RUN mkdir /app
 WORKDIR /app
 COPY go.mod .
@@ -34,11 +34,12 @@ RUN go version
 RUN buffalo build --static -o /bin/api
 
 FROM alpine
-RUN apk add --no-cache bash ca-certificates
-    
+RUN apk add --no-cache bash ca-certificates curl
+
 WORKDIR /app/
 
-COPY --from=builder /bin/api ./api
+COPY --from=builder /bin/api /bin/api
+RUN chown nobody:nogroup /bin/api
 
 # copy local config.json file
 COPY config/config.json ./config/
@@ -51,4 +52,5 @@ EXPOSE 8080
 RUN chown -R nobody:nogroup .
 USER nobody
 
-CMD exec /app/api
+CMD cp /bin/api /app/api && \
+    exec /app/api
