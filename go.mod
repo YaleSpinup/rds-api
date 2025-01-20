@@ -6,7 +6,7 @@ toolchain go1.23.4
 
 require (
 	github.com/YaleSpinup/apierror v0.1.5
-	github.com/aws/aws-sdk-go v1.55.5
+	github.com/aws/aws-sdk-go v1.55.6
 	github.com/gobuffalo/buffalo v1.1.0
 	github.com/gobuffalo/envy v1.10.2
 	github.com/gobuffalo/mw-paramlogger v1.0.2
