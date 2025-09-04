@@ -309,7 +309,7 @@ func (s *server) DatabasesDelete(c buffalo.Context) error {
 	
 	actions := []string{"rds:DescribeDBInstances", "rds:DeleteDBInstance", "rds:DeleteDBCluster"}
 	if snapshot {
-		actions = append(actions, "rds:CreateDBClusterSnapshot", "rds:CreateDBSnapshot")
+		actions = append(actions, "rds:CreateDBClusterSnapshot", "rds:CreateDBSnapshot", "rds:AddTagsToResource")
 	}
 	policy, err := generatePolicy(actions...)
 	if err != nil {
