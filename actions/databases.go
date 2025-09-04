@@ -306,7 +306,12 @@ func (s *server) DatabasesDelete(c buffalo.Context) error {
 	accountId := s.mapAccountNumber(c.Param("account"))
 
 	role := fmt.Sprintf("arn:aws:iam::%s:role/%s", accountId, s.session.RoleName)
-	policy, err := generatePolicy("rds:DescribeDBInstances", "rds:DeleteDBInstance", "rds:DeleteDBCluster")
+	
+	actions := []string{"rds:DescribeDBInstances", "rds:DeleteDBInstance", "rds:DeleteDBCluster"}
+	if snapshot {
+		actions = append(actions, "rds:CreateDBClusterSnapshot", "rds:CreateDBSnapshot", "rds:AddTagsToResource")
+	}
+	policy, err := generatePolicy(actions...)
 	if err != nil {
 		return handleError(c, err)
 	}
