@@ -1,4 +1,4 @@
-FROM golang:1.23.4-alpine as gobuff
+FROM golang:1.24-alpine as gobuff
 
 EXPOSE 3000
 
@@ -37,6 +37,10 @@ COPY go.sum .
 RUN go mod download
 ADD . .
 RUN go version
+
+# Enable FIPS 140-3 compliant cryptography
+ENV GOFIPS140=v1.0.0
+
 RUN buffalo build --static -o /bin/api --ldflags "-X github.com/YaleSpinup/rds-api/rdsapi.Version=$version -X github.com/YaleSpinup/rds-api/rdsapi.VersionPrerelease=$prerelease -X github.com/YaleSpinup/rds-api/rdsapi.GitHash=$githash -X github.com/YaleSpinup/rds-api/rdsapi.BuildStamp=$buildstamp"
 
 

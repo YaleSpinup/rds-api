@@ -29,8 +29,9 @@ func New(opts ...SessionOption) Session {
 	}
 
 	config := aws.Config{
-		Credentials: s.credentials,
-		Region:      aws.String(s.region),
+		Credentials:     s.credentials,
+		Region:          aws.String(s.region),
+		UseFIPSEndpoint: aws.FIPSEndpointStateEnabled,
 	}
 
 	sess := session.Must(session.NewSession(&config))
