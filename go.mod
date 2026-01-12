@@ -27,7 +27,7 @@ require (
 require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
-	github.com/YaleSpinup/aws-go v0.2.5
+	github.com/YaleSpinup/aws-go v0.2.7
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
